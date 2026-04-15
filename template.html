@@ -1,0 +1,3492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI PSYCH - W1/W2 Longitudinal Explorer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg-page:#0f1419;--bg-card:#16202a;--bg-input:#0f1419;
+--text-primary:#e0e4e8;--text-secondary:#8b98a5;--text-muted:#64748b;
+--border:#283040;--focus:#5ba8e0;
+--accent:#5ba8e0;--orange:#e8a060;
+--success:#6dd8a0;--warning:#b8d870;--caution:#e8d060;--error:#e08080;--purple:#b8a0e0;
+--radius:12px;--radius-sm:8px;
+--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg-page);color:var(--text-primary);overflow:hidden;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;color:inherit;}
+input,select{font-family:inherit;color:var(--text-primary);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;outline:none;transition:border-color .15s;}
+input:focus,select:focus{border-color:var(--focus);}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b98a5'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg-page);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+
+/* Auth Screen */
+#auth-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+background:linear-gradient(135deg,#0a0e13 0%,#16202a 50%,#0f1419 100%);z-index:9999;}
+.auth-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:40px;width:360px;text-align:center;}
+.auth-box h1{font-size:22px;margin-bottom:4px;}
+.auth-box .sub{color:var(--text-secondary);font-size:13px;margin-bottom:24px;}
+.auth-box input{width:100%;padding:10px 14px;font-size:14px;margin-bottom:12px;}
+.auth-box .btn-login{width:100%;padding:10px;font-size:14px;font-weight:600;border-radius:var(--radius-sm);
+background:linear-gradient(90deg,#3d7eb8,#5ba8e0);color:#fff;transition:opacity .15s;}
+.auth-box .btn-login:hover{opacity:.85;}
+.auth-box .err{color:var(--error);font-size:12px;margin-top:8px;min-height:18px;}
+.auth-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;
+background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
+
+/* Main Layout */
+#app{display:none;height:100vh;flex-direction:column;}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;}
+.top-bar .logo{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.top-bar .logo span{color:var(--accent);}
+.tab-bar{display:flex;gap:2px;overflow-x:auto;}
+.tab-btn{padding:6px 14px;font-size:12px;font-weight:600;color:var(--text-muted);border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:all .15s;white-space:nowrap;}
+.tab-btn:hover{color:var(--text-secondary);}
+.tab-btn.active{color:var(--accent);background:var(--bg-page);border:1px solid var(--border);border-bottom-color:var(--bg-page);margin-bottom:-1px;}
+.sample-badge{font-size:11px;color:var(--text-muted);display:flex;gap:12px;align-items:center;}
+.sample-badge b{color:var(--text-secondary);}
+
+/* Content Area */
+.content{flex:1;display:flex;overflow:hidden;}
+.tab-pane{display:none;flex:1;overflow:hidden;}
+.tab-pane.active{display:flex;}
+
+/* Sidebar */
+.sidebar{width:260px;min-width:260px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow:hidden;}
+.sidebar-search{padding:10px;border-bottom:1px solid var(--border);}
+.sidebar-search input{width:100%;font-size:12px;}
+.sidebar-presets{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.preset-btn{font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--border);color:var(--text-secondary);transition:all .15s;}
+.preset-btn:hover,.preset-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.1);}
+.sidebar-scroll{flex:1;overflow-y:auto;padding:4px 0;}
+.construct-group{border-bottom:1px solid var(--border);}
+.construct-header{display:flex;align-items:center;gap:6px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:color .15s;}
+.construct-header:hover{color:var(--text-primary);}
+.construct-header .arrow{font-size:10px;transition:transform .15s;color:var(--text-muted);}
+.construct-header.open .arrow{transform:rotate(90deg);}
+.construct-header .cnt{margin-left:auto;font-size:10px;color:var(--text-muted);font-weight:400;}
+.construct-chips{display:none;padding:2px 10px 8px 10px;display:flex;flex-wrap:wrap;gap:4px;}
+.construct-group:not(.open) .construct-chips{display:none;}
+.construct-group.open .construct-chips{display:flex;}
+.var-chip{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;border-left:3px solid var(--text-muted);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
+.var-chip:hover{border-color:var(--accent);color:var(--text-primary);}
+.var-chip.selected{border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.1);}
+
+/* Main Panel */
+.main-panel{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.card-title .badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
+.badge-accent{background:rgba(91,168,224,.15);color:var(--accent);}
+.badge-success{background:rgba(109,216,160,.15);color:var(--success);}
+.badge-error{background:rgba(224,144,144,.15);color:var(--error);}
+.badge-orange{background:rgba(232,160,96,.15);color:var(--orange);}
+.badge-purple{background:rgba(184,160,224,.15);color:var(--purple);}
+.badge-warning{background:rgba(184,216,112,.15);color:var(--warning);}
+.badge-caution{background:rgba(224,208,112,.15);color:var(--caution);}
+.badge-muted{background:rgba(139,152,165,.12);color:var(--text-secondary);}
+
+/* Group-By Bar */
+.group-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;}
+.group-bar label{font-size:11px;color:var(--text-secondary);font-weight:600;}
+.group-bar select{font-size:11px;padding:4px 24px 4px 8px;}
+
+/* Chart Container */
+.chart-area{position:relative;min-height:60px;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;}
+.bar-label{width:120px;min-width:120px;text-align:right;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;height:24px;background:var(--bg-input);border-radius:4px;position:relative;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .3s ease;}
+.bar-val{min-width:50px;font-size:11px;color:var(--text-secondary);text-align:left;}
+.bar-fill-blue{background:linear-gradient(90deg,#3d7eb8,#6db8e8);}
+.bar-fill-orange{background:linear-gradient(90deg,#c08850,#e8b080);}
+.bar-fill-green{background:linear-gradient(90deg,#408868,#78d0a0);}
+.bar-fill-red{background:linear-gradient(90deg,#b85858,#e09090);}
+.bar-fill-purple{background:linear-gradient(90deg,#8870c0,#b8a0e0);}
+.bar-fill-caution{background:linear-gradient(90deg,#b8a840,#e0d070);}
+.bar-fill-muted{background:linear-gradient(90deg,#506070,#90a0b0);}
+.bar-fill-teal{background:linear-gradient(90deg,#388888,#68c8c0);}
+
+/* Stats Table */
+.stats-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.stats-table th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text-secondary);font-weight:600;font-size:11px;}
+.stats-table td{padding:5px 8px;border-bottom:1px solid rgba(47,53,66,.5);color:var(--text-primary);}
+.stats-table tr:last-child td{border-bottom:none;}
+.stats-table .sig{color:var(--caution);font-weight:700;}
+
+/* Placeholder */
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--text-muted);font-size:13px;gap:8px;}
+.placeholder .icon{font-size:28px;opacity:.5;}
+
+/* Side-by-Side Layout */
+.side-by-side{display:flex;gap:14px;}
+.side-by-side .half{flex:1;min-width:0;}
+
+/* Analysis Mode Tabs */
+.mode-bar{display:flex;gap:4px;padding:8px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;align-items:center;}
+.mode-btn{font-size:11px;padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--text-secondary);transition:all .15s;}
+.mode-btn:hover{border-color:var(--text-secondary);}
+.mode-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.1);}
+.mode-sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+
+/* Dropdowns & IV chips for analysis */
+.analysis-config{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);}
+.config-group{display:flex;flex-direction:column;gap:4px;}
+.config-group label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.config-group select{font-size:12px;min-width:160px;}
+.iv-chips{display:flex;flex-wrap:wrap;gap:4px;max-width:400px;}
+.iv-chip{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;}
+.iv-chip:hover{border-color:var(--accent);color:var(--text-primary);}
+.iv-chip.selected{border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.1);}
+
+/* Transition panels */
+.trans-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.trans-panel{border-radius:var(--radius);border:1px solid var(--border);padding:14px 16px;background:var(--bg-card);}
+.trans-panel h3{font-size:14px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+
+/* Forest plot */
+.forest-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px;}
+.forest-label{width:140px;min-width:140px;text-align:right;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.forest-track{flex:1;height:20px;position:relative;background:var(--bg-input);border-radius:3px;}
+.forest-zero{position:absolute;top:0;bottom:0;width:1px;background:var(--error);opacity:.5;}
+.forest-ci{position:absolute;top:8px;height:4px;background:var(--accent);border-radius:2px;}
+.forest-dot{position:absolute;top:4px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--bg-card);}
+.forest-val{min-width:90px;font-size:10px;color:var(--text-secondary);}
+
+/* Heatmap */
+.heatmap{display:inline-block;font-size:11px;}
+.heatmap td,.heatmap th{padding:4px 6px;text-align:center;min-width:50px;}
+.heatmap th{color:var(--text-secondary);font-weight:600;font-size:10px;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
+.heatmap td{border-radius:3px;cursor:default;font-weight:600;}
+
+/* Path diagram */
+.path-diagram{display:flex;align-items:center;justify-content:center;gap:20px;padding:20px 0;flex-wrap:wrap;}
+.path-node{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 16px;font-size:12px;font-weight:600;text-align:center;min-width:80px;}
+.path-arrow{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--text-secondary);}
+.path-arrow .coef{font-weight:700;font-size:12px;}
+.path-arrow .line{width:60px;height:2px;background:var(--accent);position:relative;}
+.path-arrow .line::after{content:'';position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:6px solid var(--accent);}
+
+/* Responsive */
+@media(max-width:900px){.sidebar{width:200px;min-width:200px;}.bar-label{width:80px;min-width:80px;}.trans-grid{grid-template-columns:1fr;}}
+
+/* Diverging bar */
+.div-bar-row{display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:11px;}
+.div-bar-label{width:100px;min-width:100px;text-align:right;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.div-bar-neg{display:flex;justify-content:flex-end;width:45%;}
+.div-bar-pos{display:flex;justify-content:flex-start;width:45%;}
+.div-bar-center{width:1px;background:var(--text-muted);flex-shrink:0;min-height:18px;}
+.div-bar-seg{height:18px;border-radius:3px;min-width:1px;transition:width .3s;}
+.div-bar-val{min-width:45px;font-size:10px;color:var(--text-secondary);}
+
+/* Filter bar */
+.filter-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.filter-bar label{font-size:11px;color:var(--text-secondary);font-weight:600;}
+.filter-bar select{font-size:11px;padding:3px 24px 3px 8px;}
+.filter-bar .eff-n{font-size:11px;color:var(--caution);margin-left:auto;}
+
+/* War cards */
+.war-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+
+/* Overview dashboard */
+.overview-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.ov-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center;}
+.ov-card .ov-val{font-size:24px;font-weight:700;color:var(--text-primary);margin-bottom:2px;}
+.ov-card .ov-sub{font-size:11px;color:var(--text-secondary);}
+.ov-card .ov-label{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+.mini-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .15s;}
+.mini-card:hover{border-color:var(--focus);background:rgba(91,168,224,.04);}
+.mini-card .mini-label{font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-bars{display:flex;align-items:flex-end;gap:2px;height:48px;}
+.mini-bar{flex:1;background:linear-gradient(180deg,#6db8e8,#3d7eb8);border-radius:2px 2px 0 0;min-height:1px;transition:height .3s;}
+.mini-prop{display:flex;height:12px;border-radius:3px;overflow:hidden;gap:1px;}
+.mini-prop-fill{height:100%;transition:width .3s;}
+
+/* Donut chart */
+.donut-wrap{display:flex;align-items:center;justify-content:center;gap:20px;margin:8px 0;}
+.donut{width:120px;height:120px;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;}
+.donut-hole{width:72px;height:72px;border-radius:50%;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.donut-pct{font-size:20px;font-weight:700;color:var(--text-primary);}
+.donut-lbl{font-size:10px;color:var(--text-muted);}
+.donut-legend{display:flex;flex-direction:column;gap:6px;}
+.donut-leg-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);}
+.donut-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* Changes at a glance */
+.glance-row{display:flex;align-items:center;gap:6px;padding:6px 0;cursor:pointer;transition:background .15s;border-radius:var(--radius-sm);padding-left:6px;padding-right:6px;}
+.glance-row:hover{background:rgba(91,168,224,.05);}
+.glance-label{width:160px;min-width:160px;font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.glance-bar-area{flex:1;display:flex;align-items:center;gap:0;height:22px;}
+.glance-neg{display:flex;justify-content:flex-end;width:50%;}
+.glance-pos{display:flex;justify-content:flex-start;width:50%;}
+.glance-center{width:1px;background:var(--text-muted);height:22px;flex-shrink:0;}
+.glance-seg{height:18px;border-radius:3px;min-width:1px;transition:width .3s;}
+.glance-val{min-width:100px;font-size:11px;color:var(--text-secondary);padding-left:6px;white-space:nowrap;}
+.glance-star{color:var(--caution);font-weight:700;font-size:14px;width:16px;text-align:center;flex-shrink:0;}
+
+/* Research question cards */
+.rq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:12px;}
+.rq-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:all .15s;border-left:3px solid var(--accent);}
+.rq-card:hover{border-color:var(--focus);background:rgba(91,168,224,.05);}
+.rq-card .rq-icon{font-size:18px;margin-bottom:6px;}
+.rq-card .rq-q{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px;}
+.rq-card .rq-desc{font-size:11px;color:var(--text-muted);margin-bottom:8px;}
+.rq-card .rq-run{font-size:11px;font-weight:600;color:var(--accent);display:inline-flex;align-items:center;gap:4px;}
+
+/* Step indicator */
+.step-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;font-size:11px;}
+.step-item{display:flex;align-items:center;gap:4px;color:var(--text-muted);transition:color .15s;}
+.step-item.active{color:var(--accent);font-weight:600;}
+.step-item.done{color:var(--success);}
+.step-arrow{color:var(--text-muted);font-size:10px;}
+
+/* Slope visualization */
+.slope-viz{display:flex;gap:8px;align-items:stretch;margin-top:10px;}
+.slope-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.slope-bar-label{font-size:10px;color:var(--text-secondary);text-align:center;}
+.slope-bar-track{width:100%;height:36px;background:var(--bg-input);border-radius:4px;position:relative;overflow:hidden;display:flex;align-items:center;}
+.slope-bar-center{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--text-muted);opacity:.5;}
+.slope-bar-fill{height:24px;border-radius:3px;position:absolute;top:6px;transition:width .3s,left .3s;}
+.slope-bar-val{font-size:10px;color:var(--text-secondary);font-weight:600;}
+
+/* Narrative interpretation cards */
+.narrative-card{
+  background:linear-gradient(135deg,rgba(91,168,224,0.05),rgba(184,160,224,0.05));
+  border:1px solid rgba(91,168,224,0.2);border-radius:10px;padding:16px 20px;margin-top:12px;
+  font-size:13px;line-height:1.6;color:var(--text-primary);
+}
+.narrative-card h4{color:var(--accent);font-size:13px;margin:0 0 8px 0;font-weight:600;}
+.narrative-sig{color:var(--success);font-weight:600;}
+.narrative-ns{color:var(--text-muted);}
+.narrative-card .ai-btn{margin-top:10px;padding:6px 14px;font-size:11px;font-weight:600;border-radius:var(--radius-sm);
+  border:1px solid rgba(184,160,224,0.3);color:var(--purple);background:rgba(184,160,224,0.08);cursor:pointer;transition:all .15s;}
+.narrative-card .ai-btn:hover{background:rgba(184,160,224,0.15);border-color:var(--purple);}
+.narrative-card .ai-btn:disabled{opacity:.5;cursor:default;}
+
+@media(max-width:1100px){.overview-cards{grid-template-columns:repeat(2,1fr);}.mini-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.overview-cards{grid-template-columns:1fr;}.mini-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<script>
+const DATA = /*__EXPLORER_DATA__*/null;
+</script>
+
+<div id="auth-screen">
+<div class="auth-box">
+<div class="auth-badge">RESEARCH PORTAL</div>
+<h1>AI PSYCH Explorer</h1>
+<div class="sub">W1/W2 Longitudinal Data Explorer</div>
+<input type="password" id="auth-pw" placeholder="Enter password" autocomplete="off">
+<button class="btn-login" id="auth-btn">Sign In</button>
+<div class="err" id="auth-err"></div>
+</div>
+</div>
+
+<div id="app" style="display:none;">
+<div class="top-bar">
+<div class="logo"><span>AI</span> PSYCH Explorer</div>
+<div class="tab-bar" id="tab-bar"></div>
+<div class="sample-badge" id="sample-badge"></div>
+</div>
+<div class="content" id="content-area"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   STATS LIBRARY
+   ============================================================ */
+function normalCDF(z){var a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p2=0.3275911;
+var sign=z<0?-1:1;z=Math.abs(z)/Math.sqrt(2);var t=1/(1+p2*z);
+var y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-z*z);return 0.5*(1+sign*y);}
+function lnG(x){var c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+var y=x,tmp=x+5.5;tmp-=(x+0.5)*Math.log(tmp);var ser=1.000000000190015;for(var j=0;j<6;j++)ser+=c[j]/++y;return -tmp+Math.log(2.5066282746310005*ser/x);}
+function betaCF(x,a,b){var qab=a+b,qap=a+1,qam=a-1;var am=1,bm=1,az=1,bz=1-qab*x/qap;if(Math.abs(bz)<1e-30)bz=1e-30;
+bz=1/bz;var h=bz;for(var m=1;m<=200;m++){var em=m,d=em*(b-m)*x/((qam+2*em)*(a+2*em));
+var ap=az+d*am,bp=bz+d*bm;d=-(a+em)*(qab+em)*x/((a+2*em)*(qap+2*em));
+var app=ap+d*az,bpp=bp+d*bz;var old=az;am=ap/bpp;bm=bp/bpp;az=app/bpp;bz=1;
+if(Math.abs(az-old)<3e-7*Math.abs(az))return az;}return az;}
+function tCDF(t,df){var x=df/(df+t*t);var a2=df/2,b2=0.5;
+var bt=Math.exp(lnG(a2+b2)-lnG(a2)-lnG(b2)+a2*Math.log(x)+b2*Math.log(1-x));
+var r=bt*betaCF(x,a2,b2)/a2;return t>=0?1-0.5*r:0.5*r;}
+function fCDF(f,d1,d2){if(f<=0)return 0;var x=d2/(d2+d1*f);
+var bt=Math.exp(lnG((d1+d2)/2)-lnG(d1/2)-lnG(d2/2)+(d2/2)*Math.log(x)+(d1/2)*Math.log(1-x));
+return 1-bt*betaCF(x,d2/2,d1/2)/(d2/2);}
+function normCDF(z){return normalCDF(z);}
+
+function welchT(m1,s1,n1,m2,s2,n2){if(!n1||!n2||n1<2||n2<2)return{t:NaN,df:NaN,p:NaN};
+var se=Math.sqrt(s1*s1/n1+s2*s2/n2);if(se===0)return{t:0,df:n1+n2-2,p:1};var tv=(m1-m2)/se;
+var v1=s1*s1/n1,v2=s2*s2/n2;var df=Math.pow(v1+v2,2)/(v1*v1/(n1-1)+v2*v2/(n2-1));
+return{t:tv,df:Math.round(df*10)/10,p:2*(1-tCDF(Math.abs(tv),df))};}
+
+function pairedT(d){var n=d.length;if(n<2)return{t:NaN,df:NaN,p:NaN,mean:NaN,sd:NaN};var m=0;for(var i=0;i<n;i++)m+=d[i];m/=n;
+var s=0;for(var i=0;i<n;i++)s+=(d[i]-m)*(d[i]-m);s=Math.sqrt(s/(n-1));
+var se=s/Math.sqrt(n);if(se===0)return{t:0,df:n-1,p:1,mean:m,sd:s};
+return{t:m/se,df:n-1,p:2*(1-tCDF(Math.abs(m/se),n-1)),mean:m,sd:s};}
+
+function pearsonR(x,y){var n=Math.min(x.length,y.length),sx=0,sy=0,sxx=0,syy=0,sxy=0;
+for(var i=0;i<n;i++){sx+=x[i];sy+=y[i];sxx+=x[i]*x[i];syy+=y[i]*y[i];sxy+=x[i]*y[i];}
+var num=n*sxy-sx*sy,den=Math.sqrt((n*sxx-sx*sx)*(n*syy-sy*sy));
+if(den===0)return{r:0,p:1,n:n};var r=num/den;
+var t=r*Math.sqrt((n-2)/(1-r*r+1e-15));return{r:r,p:2*(1-tCDF(Math.abs(t),n-2)),n:n};}
+
+function matT(A){var r=A.length,c=A[0].length,T=[];for(var j=0;j<c;j++){T[j]=[];for(var i=0;i<r;i++)T[j][i]=A[i][j];}return T;}
+function matMul(A,B){var rA=A.length,cA=A[0].length,cB=B[0].length,C=[];
+for(var i=0;i<rA;i++){C[i]=[];for(var j=0;j<cB;j++){var s=0;for(var k=0;k<cA;k++)s+=A[i][k]*B[k][j];C[i][j]=s;}}return C;}
+function matInv(M){var n=M.length,A=M.map(function(r){return r.slice();});
+var I=[];for(var i=0;i<n;i++){I[i]=[];for(var j=0;j<n;j++)I[i][j]=i===j?1:0;}
+for(var c=0;c<n;c++){var mxR=c,mxV=Math.abs(A[c][c]);
+for(var r=c+1;r<n;r++){if(Math.abs(A[r][c])>mxV){mxV=Math.abs(A[r][c]);mxR=r;}}
+if(mxV<1e-12)return null;var tmp=A[c];A[c]=A[mxR];A[mxR]=tmp;tmp=I[c];I[c]=I[mxR];I[mxR]=tmp;
+var piv=A[c][c];for(var j=0;j<n;j++){A[c][j]/=piv;I[c][j]/=piv;}
+for(var r=0;r<n;r++){if(r===c)continue;var f=A[r][c];for(var j=0;j<n;j++){A[r][j]-=f*A[c][j];I[r][j]-=f*I[c][j];}}}return I;}
+
+function olsReg(y,X,vn){var n=y.length,p=X[0].length;
+var Xt=matT(X),XtX=matMul(Xt,X),XtXi=matInv(XtX);if(!XtXi)return{error:'Singular matrix'};
+var Xty=matMul(Xt,y.map(function(v){return[v];}));
+var beta=matMul(XtXi,Xty).map(function(r){return r[0];});
+var ybar=0;for(var i=0;i<n;i++)ybar+=y[i];ybar/=n;
+var ss_res=0,ss_tot=0;
+for(var i=0;i<n;i++){var pred=0;for(var j=0;j<p;j++)pred+=X[i][j]*beta[j];ss_res+=(y[i]-pred)*(y[i]-pred);ss_tot+=(y[i]-ybar)*(y[i]-ybar);}
+var r2=ss_tot>0?1-ss_res/ss_tot:0,df_res=n-p;if(df_res<1)return{error:'n<=p'};var mse=ss_res/df_res;
+var se=[],tv=[],pv=[];
+for(var j=0;j<p;j++){se[j]=Math.sqrt(Math.max(0,mse*XtXi[j][j]));tv[j]=se[j]>0?beta[j]/se[j]:0;pv[j]=2*(1-tCDF(Math.abs(tv[j]),df_res));}
+var df_m=p-1,ms_m=df_m>0?(ss_tot-ss_res)/df_m:0;var f_s=mse>0?ms_m/mse:0,f_p=1-fCDF(f_s,df_m,df_res);
+return{beta:beta,se:se,t:tv,p:pv,ci_lo:beta.map(function(b,j){return b-1.96*se[j];}),ci_hi:beta.map(function(b,j){return b+1.96*se[j];}),
+r2:r2,adj_r2:1-(1-r2)*(n-1)/df_res,f_stat:f_s,f_p:f_p,df_m:df_m,df_res:df_res,n:n,vn:vn,
+vcov:XtXi.map(function(r){return r.map(function(v){return v*mse;});})};}
+
+function logReg(y,X,vn){var n=y.length,p=X[0].length;var beta=new Array(p).fill(0);
+for(var iter=0;iter<25;iter++){var mu=[],W=[];
+for(var i=0;i<n;i++){var eta=0;for(var j=0;j<p;j++)eta+=X[i][j]*beta[j];mu[i]=1/(1+Math.exp(-Math.max(-500,Math.min(500,eta))));mu[i]=Math.max(1e-10,Math.min(1-1e-10,mu[i]));W[i]=mu[i]*(1-mu[i]);}
+var XtWX=[];for(var j1=0;j1<p;j1++){XtWX[j1]=[];for(var j2=0;j2<p;j2++){var s=0;for(var i=0;i<n;i++)s+=X[i][j1]*W[i]*X[i][j2];XtWX[j1][j2]=s;}}
+var score=[];for(var j=0;j<p;j++){var s=0;for(var i=0;i<n;i++)s+=X[i][j]*(y[i]-mu[i]);score[j]=s;}
+var inv=matInv(XtWX);if(!inv)return{error:'Singular matrix'};
+var mxD=0;for(var j=0;j<p;j++){var d=0;for(var k=0;k<p;k++)d+=inv[j][k]*score[k];beta[j]+=d;mxD=Math.max(mxD,Math.abs(d));}
+if(mxD<1e-8)break;}
+var mu2=[],W2=[];for(var i=0;i<n;i++){var eta=0;for(var j=0;j<p;j++)eta+=X[i][j]*beta[j];mu2[i]=1/(1+Math.exp(-Math.max(-500,Math.min(500,eta))));W2[i]=mu2[i]*(1-mu2[i]);}
+var XtWX2=[];for(var j1=0;j1<p;j1++){XtWX2[j1]=[];for(var j2=0;j2<p;j2++){var s=0;for(var i=0;i<n;i++)s+=X[i][j1]*W2[i]*X[i][j2];XtWX2[j1][j2]=s;}}
+var vcov=matInv(XtWX2);if(!vcov)return{error:'SEs failed'};
+var se=[],z=[],pv=[];for(var j=0;j<p;j++){se[j]=Math.sqrt(Math.max(0,vcov[j][j]));z[j]=se[j]>0?beta[j]/se[j]:0;pv[j]=2*(1-normCDF(Math.abs(z[j])));}
+var llF=0,llN=0,pBar=0;for(var i=0;i<n;i++)pBar+=y[i];pBar/=n;
+for(var i=0;i<n;i++){llF+=y[i]*Math.log(mu2[i]+1e-15)+(1-y[i])*Math.log(1-mu2[i]+1e-15);llN+=y[i]*Math.log(pBar+1e-15)+(1-y[i])*Math.log(1-pBar+1e-15);}
+return{beta:beta,or:beta.map(function(b){return Math.exp(b);}),se:se,z:z,p:pv,
+ci_lo:beta.map(function(b,j){return Math.exp(b-1.96*se[j]);}),ci_hi:beta.map(function(b,j){return Math.exp(b+1.96*se[j]);}),
+pseudoR2:llN!==0?1-llF/llN:0,n:n,vn:vn,vcov:vcov,isLog:true};}
+
+function sobelMed(x,med,y){var n=x.length;
+var Xa=x.map(function(v){return[1,v];});var modA=olsReg(med,Xa,['Int','X']);var modC=olsReg(y,Xa,['Int','X']);
+var Xb=[];for(var i=0;i<n;i++)Xb[i]=[1,x[i],med[i]];var modB=olsReg(y,Xb,['Int','X','M']);
+if(modA.error||modC.error||modB.error)return{error:'Model failed'};
+var a=modA.beta[1],se_a=modA.se[1],b=modB.beta[2],se_b=modB.se[2];
+var c=modC.beta[1],cp=modB.beta[1],ab=a*b;
+var sob_se=Math.sqrt(b*b*se_a*se_a+a*a*se_b*se_b);
+var sob_z=sob_se>0?ab/sob_se:0,sob_p=2*(1-normCDF(Math.abs(sob_z)));
+return{a:a,se_a:se_a,p_a:modA.p[1],b:b,se_b:se_b,p_b:modB.p[2],c:c,cp:cp,
+ab:ab,sob_z:sob_z,sob_p:sob_p,pct:c!==0?Math.abs((c-cp)/c)*100:0,n:n};}
+
+function modAnalysis(y,x,mod){var n=y.length,xB=0,mB=0,mSD=0;
+for(var i=0;i<n;i++){xB+=x[i];mB+=mod[i];}xB/=n;mB/=n;
+for(var i=0;i<n;i++)mSD+=(mod[i]-mB)*(mod[i]-mB);mSD=Math.sqrt(mSD/(n-1));
+var xc=x.map(function(v){return v-xB;}),mc=mod.map(function(v){return v-mB;});
+var X=[];for(var i=0;i<n;i++)X[i]=[1,xc[i],mc[i],xc[i]*mc[i]];
+var res=olsReg(y,X,['Intercept','X','Moderator','X x Moderator']);if(res.error)return{error:res.error};
+var slopes=[];
+[{l:'Low (-1SD)',v:-mSD},{l:'Mean',v:0},{l:'High (+1SD)',v:mSD}].forEach(function(lv){
+var sl=res.beta[1]+res.beta[3]*lv.v;
+var se_sl=Math.sqrt(Math.max(0,res.vcov[1][1]+lv.v*lv.v*res.vcov[3][3]+2*lv.v*res.vcov[1][3]));
+var t=se_sl>0?sl/se_sl:0,p=2*(1-tCDF(Math.abs(t),res.df_res));
+slopes.push({l:lv.l,sl:sl,se:se_sl,t:t,p:p});});
+return{mod:res,slopes:slopes,n:n};}
+
+function chiSq2x2(a,b,c,d){var n=a+b+c+d;if(n===0)return{chi:0,p:1};
+var e=((a+b)*(a+c))/n;var f=((a+b)*(b+d))/n;var g=((c+d)*(a+c))/n;var h=((c+d)*(b+d))/n;
+if(e<1||f<1||g<1||h<1)return{chi:NaN,p:NaN};
+var chi=(a-e)*(a-e)/e+(b-f)*(b-f)/f+(c-g)*(c-g)/g+(d-h)*(d-h)/h;
+var p2=1-normalCDF(Math.sqrt(Math.max(0,chi)));p2=2*p2;
+return{chi:chi,p:p2>1?1:p2};}
+
+function proportionZ(p1,n1,p2,n2){
+var pp=(p1*n1+p2*n2)/(n1+n2);if(pp===0||pp===1)return{z:0,p:1};
+var se=Math.sqrt(pp*(1-pp)*(1/n1+1/n2));if(se===0)return{z:0,p:1};
+var z=(p1-p2)/se;return{z:z,p:2*(1-normCDF(Math.abs(z)))};}
+
+/* ============================================================
+   DATA HELPERS
+   ============================================================ */
+function getVec(wave,varKey,mask){
+  var src=wave===1?DATA.w1:DATA.w2;
+  var arr=src[varKey];if(!arr)return[];
+  var result=[];
+  for(var i=0;i<arr.length;i++){
+    if(mask&&!mask[i])continue;
+    if(arr[i]!==null&&arr[i]!==undefined&&!isNaN(arr[i]))result.push(arr[i]);
+  }
+  return result;
+}
+
+function getVecRaw(wave,varKey,mask){
+  var src=wave===1?DATA.w1:DATA.w2;
+  var arr=src[varKey];if(!arr)return[];
+  var result=[];
+  for(var i=0;i<arr.length;i++){
+    if(mask&&!mask[i])continue;
+    result.push(arr[i]);
+  }
+  return result;
+}
+
+function getPairedVecs(varKey,mask){
+  var w1arr=DATA.w1[varKey],w2arr=DATA.w2[varKey];
+  if(!w1arr||!w2arr)return null;
+  var x=[],y=[];
+  for(var i=0;i<DATA.meta.w2_n;i++){
+    if(mask&&!mask[i])continue;
+    var w1i=DATA.matched.link[i];
+    if(w1i===null||w1i===undefined)continue;
+    var v1=w1arr[w1i],v2=w2arr[i];
+    if(v1!==null&&v1!==undefined&&v2!==null&&v2!==undefined&&!isNaN(v1)&&!isNaN(v2)){x.push(v1);y.push(v2);}
+  }
+  return{w1:x,w2:y};
+}
+
+function getCrossVecs(w1Var,w2Var,mask){
+  var w1arr=DATA.w1[w1Var],w2arr=DATA.w2[w2Var];
+  if(!w1arr||!w2arr)return null;
+  var x=[],y=[];
+  for(var i=0;i<DATA.meta.w2_n;i++){
+    if(mask&&!mask[i])continue;
+    var w1i=DATA.matched.link[i];
+    if(w1i===null||w1i===undefined)continue;
+    var v1=w1arr[w1i],v2=w2arr[i];
+    if(v1!==null&&v1!==undefined&&v2!==null&&v2!==undefined&&!isNaN(v1)&&!isNaN(v2)){x.push(v1);y.push(v2);}
+  }
+  return{x:x,y:y};
+}
+
+function getAlignedVecs(wave,vars,mask){
+  var src=wave===1?DATA.w1:DATA.w2;
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var arrs=vars.map(function(v){return src[v];});
+  if(arrs.some(function(a){return!a;}))return null;
+  var ys=[],xs=[];
+  for(var i=0;i<n;i++){
+    if(mask&&!mask[i])continue;
+    var ok=true;
+    for(var j=0;j<arrs.length;j++){
+      if(arrs[j][i]===null||arrs[j][i]===undefined||isNaN(arrs[j][i])){ok=false;break;}
+    }
+    if(!ok)continue;
+    var row=[];for(var j=0;j<arrs.length;j++)row.push(arrs[j][i]);
+    xs.push(row);
+  }
+  return xs;
+}
+
+function getCrossAligned(w1Vars,w2Var,mask){
+  var w2arr=DATA.w2[w2Var];if(!w2arr)return null;
+  var w1arrs=w1Vars.map(function(v){return DATA.w1[v];});
+  if(w1arrs.some(function(a){return!a;}))return null;
+  var ys=[],xs=[];
+  for(var i=0;i<DATA.meta.w2_n;i++){
+    if(mask&&!mask[i])continue;
+    var w1i=DATA.matched.link[i];
+    if(w1i===null||w1i===undefined)continue;
+    var yv=w2arr[i];if(yv===null||yv===undefined||isNaN(yv))continue;
+    var ok=true,row=[];
+    for(var j=0;j<w1arrs.length;j++){
+      var v=w1arrs[j][w1i];if(v===null||v===undefined||isNaN(v)){ok=false;break;}row.push(v);
+    }
+    if(!ok)continue;
+    ys.push(yv);xs.push(row);
+  }
+  return{y:ys,X:xs};
+}
+
+function descStats(arr){
+  if(!arr||arr.length===0)return{n:0,mean:NaN,sd:NaN,median:NaN,min:NaN,max:NaN};
+  var n=arr.length,sum=0,sum2=0,mn=arr[0],mx=arr[0];
+  for(var i=0;i<n;i++){sum+=arr[i];sum2+=arr[i]*arr[i];if(arr[i]<mn)mn=arr[i];if(arr[i]>mx)mx=arr[i];}
+  var mean=sum/n,variance=sum2/n-mean*mean;
+  var sd=n>1?Math.sqrt(variance*n/(n-1)):0;
+  var sorted=arr.slice().sort(function(a,b){return a-b;});
+  var median=n%2===0?(sorted[n/2-1]+sorted[n/2])/2:sorted[Math.floor(n/2)];
+  return{n:n,mean:mean,sd:sd,median:median,min:mn,max:mx};
+}
+
+function buildMask(wave,filters){
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var mask=new Uint8Array(n).fill(1);
+  if(!filters)return mask;
+  if(filters.aimh!==undefined){
+    var src=wave===1?DATA.w1.AI_MH:DATA.w2.AI_MH;
+    if(src)for(var i=0;i<n;i++)if(src[i]!==filters.aimh)mask[i]=0;
+  }
+  if(filters.excludeDiscontinuers&&wave===2){
+    for(var i=0;i<n;i++)if(DATA.matched.transition[i]===3)mask[i]=0;
+  }
+  if(filters.transitionGroup!==undefined&&wave===2){
+    for(var i=0;i<n;i++)if(DATA.matched.transition[i]!==filters.transitionGroup)mask[i]=0;
+  }
+  if(filters.gender!==undefined){
+    var src2=wave===1?DATA.w1.Gender:DATA.w2.Gender;
+    if(src2)for(var i=0;i<n;i++)if(src2[i]!==filters.gender)mask[i]=0;
+  }
+  if(filters.dassMin!==undefined||filters.dassMax!==undefined){
+    var src3=wave===1?DATA.w1.DASS_Total:DATA.w2.DASS_Total;
+    var lo=filters.dassMin||0,hi=filters.dassMax!==undefined?filters.dassMax:999;
+    if(src3)for(var i=0;i<n;i++)if(src3[i]===null||src3[i]===undefined||src3[i]<lo||src3[i]>hi)mask[i]=0;
+  }
+  return mask;
+}
+
+function countMask(mask){var c=0;for(var i=0;i<mask.length;i++)if(mask[i])c++;return c;}
+
+function fmt(v,d){if(v===null||v===undefined||isNaN(v))return '-';return v.toFixed(d!==undefined?d:2);}
+function fmtP(p){if(p===null||p===undefined||isNaN(p))return '-';if(p<.001)return '< .001';return p.toFixed(3);}
+function sigStars(p){if(p<.001)return '***';if(p<.01)return '**';if(p<.05)return '*';return '';}
+
+function getVarMeta(key){return DATA.meta.vars[key]||{label:key,type:'continuous',construct:'other'};}
+function getVarLabel(key){var m=getVarMeta(key);return m.label||key;}
+function getVarLabelWave(key,wave){
+  var m=getVarMeta(key);var lbl=m.label||key;
+  var w=m.waves;
+  if(wave==='cross'){
+    // In cross-wave mode, show W1/W2 badge
+    if(Array.isArray(w)&&w.length===1)return lbl+(w[0]===1?' [W1]':' [W2]');
+    return lbl;
+  }
+  if(Array.isArray(w)&&w.length===2)return lbl;
+  if(Array.isArray(w)&&w[0]===1)return lbl+' [W1]';
+  if(Array.isArray(w)&&w[0]===2)return lbl+' [W2]';
+  return lbl;
+}
+// Map saturated construct colors from JSON to soft palette
+var SOFT_COLOR_MAP={
+  '#1d9bf0':'#5ba8e0','#f87171':'#e09090','#4ade80':'#6dd8a0','#a78bfa':'#b8a0e0',
+  '#f0883e':'#e8a060','#facc15':'#e0d070','#a3e635':'#b8d870','#fb923c':'#e8a060',
+  '#38bdf8':'#68b8e8','#22d3ee':'#68c8c0','#ef4444':'#e09090','#c084fc':'#b8a0e0',
+  '#34d399':'#6dd8a0'
+};
+function softenColor(c){return SOFT_COLOR_MAP[c]||c;}
+
+function getConstructColor(ck){
+  var cs=DATA.meta.constructs;
+  for(var i=0;i<cs.length;i++)if(cs[i].key===ck)return softenColor(cs[i].color);
+  return '#8b98a5';
+}
+
+function getVarsForWave(wave){
+  var out=[];
+  var keys=Object.keys(DATA.meta.vars);
+  for(var i=0;i<keys.length;i++){
+    var m=DATA.meta.vars[keys[i]];
+    if(m.waves&&m.waves.indexOf(wave)>=0)out.push(keys[i]);
+  }
+  return out;
+}
+
+function isBinary(key){var m=getVarMeta(key);return m.type==='binary';}
+function isCategorical(key){var m=getVarMeta(key);return m.type==='categorical'||m.type==='ordinal';}
+function isContinuous(key){var m=getVarMeta(key);return m.type==='continuous';}
+function isMultiChoice(key){
+  if(!DATA.meta.multi_choice_sets)return false;
+  return !!DATA.meta.multi_choice_sets[key];
+}
+
+var FILL_CLASSES=['bar-fill-blue','bar-fill-orange','bar-fill-green','bar-fill-red','bar-fill-purple','bar-fill-caution','bar-fill-muted','bar-fill-teal'];
+
+/* ============================================================
+   DOM HELPERS
+   ============================================================ */
+function el(tag,cls,txt){
+  var e=document.createElement(tag);
+  if(cls)e.className=cls;
+  if(txt!==undefined)e.textContent=txt;
+  return e;
+}
+
+function clearEl(e){while(e.firstChild)e.removeChild(e.firstChild);}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+function initAuth(){
+  var pw=document.getElementById('auth-pw');
+  var btn=document.getElementById('auth-btn');
+  var err=document.getElementById('auth-err');
+  function tryLogin(){
+    if(pw.value==='aipsych2026'){
+      document.getElementById('auth-screen').style.display='none';
+      var app=document.getElementById('app');
+      app.style.display='flex';
+      initApp();
+    } else {
+      err.textContent='Invalid password';
+      pw.value='';pw.focus();
+    }
+  }
+  btn.addEventListener('click',tryLogin);
+  pw.addEventListener('keydown',function(e){if(e.key==='Enter')tryLogin();});
+  pw.focus();
+}
+
+/* ============================================================
+   APP INIT
+   ============================================================ */
+var TABS=[
+  {id:'w1',label:'Wave 1 Explorer'},
+  {id:'w2',label:'Wave 2 Explorer'},
+  {id:'sbs',label:'Side-by-Side'},
+  {id:'adv',label:'Advanced Analysis'},
+  {id:'trans',label:'Transition Groups'},
+  {id:'war',label:'War Context'}
+];
+var activeTab='w1';
+var tabState={};
+
+function initApp(){
+  if(!DATA){
+    document.getElementById('content-area').textContent='No data loaded. DATA placeholder not replaced.';
+    return;
+  }
+  updateSampleBadge();
+  buildTabs();
+  switchTab('w1');
+}
+
+function updateSampleBadge(){
+  var sb=document.getElementById('sample-badge');
+  clearEl(sb);
+  var s1=el('span','','W1: ');var b1=el('b','',String(DATA.meta.w1_n));s1.appendChild(b1);sb.appendChild(s1);
+  var s2=el('span','','W2: ');var b2=el('b','',String(DATA.meta.w2_n));s2.appendChild(b2);sb.appendChild(s2);
+  var matched=DATA.matched.link?DATA.matched.link.length:0;
+  var s3=el('span','','Matched: ');var b3=el('b','',String(matched));s3.appendChild(b3);sb.appendChild(s3);
+}
+
+function buildTabs(){
+  var bar=document.getElementById('tab-bar');
+  clearEl(bar);
+  TABS.forEach(function(t){
+    var btn=el('button','tab-btn',t.label);
+    btn.dataset.tab=t.id;
+    btn.addEventListener('click',function(){switchTab(t.id);});
+    bar.appendChild(btn);
+  });
+}
+
+function switchTab(id){
+  activeTab=id;
+  var btns=document.querySelectorAll('.tab-btn');
+  btns.forEach(function(b){b.classList.toggle('active',b.dataset.tab===id);});
+  var content=document.getElementById('content-area');
+  clearEl(content);
+  var pane=el('div','tab-pane active');
+  pane.id='pane-'+id;
+  content.appendChild(pane);
+  switch(id){
+    case 'w1':buildExplorerTab(pane,1);break;
+    case 'w2':buildExplorerTab(pane,2);break;
+    case 'sbs':buildSideBySideTab(pane);break;
+    case 'adv':buildAdvancedTab(pane);break;
+    case 'trans':buildTransitionTab(pane);break;
+    case 'war':buildWarTab(pane);break;
+  }
+}
+
+/* ============================================================
+   TAB 1 & 2: WAVE EXPLORER
+   ============================================================ */
+function buildExplorerTab(pane,wave){
+  var stateKey='explorer'+wave;
+  if(!tabState[stateKey])tabState[stateKey]={selected:null,groupBy:'none',filters:{}};
+  var st=tabState[stateKey];
+
+  // Filter bar with preset chips
+  var fbar=el('div','group-bar');
+  var fl=el('label','','Filter:');fl.style.marginRight='6px';fbar.appendChild(fl);
+  var filterPresets=[{k:'all',l:'All'},{k:'aimh',l:'AI-MH Only'},{k:'noaimh',l:'Non AI-MH'}];
+  if(wave===2)filterPresets.push({k:'nodisc',l:'Excl. Discontinuers'});
+  filterPresets.forEach(function(fp){
+    var btn=el('button','preset-btn',fp.l);
+    if((st.filterPreset||'all')===fp.k)btn.classList.add('active');
+    btn.addEventListener('click',function(){
+      st.filterPreset=fp.k;
+      fbar.querySelectorAll('.preset-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      renderExplorer(mainPanel,wave,st);
+    });
+    fbar.appendChild(btn);
+  });
+  // Effective N badge
+  var effN=el('span','badge badge-accent','');effN.style.marginLeft='auto';
+  fbar.appendChild(effN);
+
+  // Group bar
+  var gbar=el('div','group-bar');
+  var gl=el('label','','Group by:');gbar.appendChild(gl);
+  var gsel=el('select','');
+  [{v:'none',l:'None'},{v:'gender',l:'Gender'},{v:'aimh',l:'AI-MH Status'}].forEach(function(o){
+    var opt=el('option','',o.l);opt.value=o.v;gsel.appendChild(opt);
+  });
+  if(wave===2){var otrans=el('option','','Transition Group');otrans.value='transition';gsel.appendChild(otrans);}
+  var odass=el('option','','DASS Severity');odass.value='dass';gsel.appendChild(odass);
+  gsel.value=st.groupBy;
+  gsel.addEventListener('change',function(){st.groupBy=gsel.value;renderExplorer(mainPanel,wave,st);});
+  gbar.appendChild(gsel);
+
+  pane.style.flexDirection='row';
+
+  // Sidebar
+  var sidebar=el('div','sidebar');
+  var search=el('div','sidebar-search');
+  var sinput=el('input','');sinput.placeholder='Search variables...';sinput.type='text';
+  search.appendChild(sinput);
+  sidebar.appendChild(search);
+
+  var presets=el('div','sidebar-presets');
+  var pKey=el('button','preset-btn','Key Variables');
+  pKey.addEventListener('click',function(){selectKeyVars(wave,st,mainPanel);});
+  var pAll=el('button','preset-btn','All');
+  pAll.addEventListener('click',function(){
+    // Select first variable (no multi-select support)
+    var allVars=getVarsForWave(wave);
+    if(allVars.length>0){
+      st.selected=allVars[0];
+      var sidebar2=mainPanel.parentElement.querySelector('.sidebar');
+      if(sidebar2)updateChipSelection(sidebar2,allVars[0]);
+      renderExplorer(mainPanel,wave,st);
+    }
+  });
+  presets.appendChild(pKey);presets.appendChild(pAll);
+  sidebar.appendChild(presets);
+
+  var scroll=el('div','sidebar-scroll');
+  var vars=getVarsForWave(wave);
+
+  // Group by construct
+  var groups={};
+  vars.forEach(function(k){
+    var m=getVarMeta(k);
+    var c=m.construct||'other';
+    if(!groups[c])groups[c]=[];
+    groups[c].push(k);
+  });
+
+  // Also add multi-choice sets
+  if(DATA.meta.multi_choice_sets){
+    Object.keys(DATA.meta.multi_choice_sets).forEach(function(setKey){
+      var ms=DATA.meta.multi_choice_sets[setKey];
+      if(ms.wave&&ms.wave!==wave&&ms.wave!=='both')return;
+      if(!groups['multi_choice'])groups['multi_choice']=[];
+      groups['multi_choice'].push('__mc__'+setKey);
+    });
+  }
+
+  var constructs=DATA.meta.constructs||[];
+  // Add multi_choice construct if we have items
+  var constructOrder=constructs.map(function(c){return c.key;});
+  if(groups['multi_choice']&&constructOrder.indexOf('multi_choice')<0){
+    constructOrder.push('multi_choice');
+  }
+
+  constructOrder.forEach(function(ck){
+    if(!groups[ck]||groups[ck].length===0)return;
+    var cInfo=constructs.find(function(c){return c.key===ck;})||{key:ck,label:ck,color:'#8b98a5'};
+    var grp=el('div','construct-group');
+    var hdr=el('div','construct-header');
+    var arrow=el('span','arrow','\u25B6');hdr.appendChild(arrow);
+    var lbl=el('span','',cInfo.label||ck);hdr.appendChild(lbl);
+    var cnt=el('span','cnt',String(groups[ck].length));hdr.appendChild(cnt);
+    hdr.addEventListener('click',function(){grp.classList.toggle('open');hdr.classList.toggle('open');});
+    grp.appendChild(hdr);
+
+    var chips=el('div','construct-chips');
+    groups[ck].forEach(function(k){
+      var chip=el('button','var-chip');
+      chip.style.borderLeftColor=softenColor(cInfo.color)||'#8b98a5';
+      var isMC=k.indexOf('__mc__')===0;
+      var label=isMC?k.replace('__mc__','')+'  (set)':getVarLabel(k);
+      chip.textContent=label;
+      var vmeta=isMC?null:getVarMeta(k);
+      chip.title=isMC?k:(k+' ['+((vmeta&&vmeta.waves)?vmeta.waves.map(function(w){return 'W'+w;}).join('+'):'?')+']');
+      chip.dataset.varkey=k;
+      chip.addEventListener('click',function(){
+        st.selected=k;
+        updateChipSelection(sidebar,k);
+        renderExplorer(mainPanel,wave,st);
+      });
+      chips.appendChild(chip);
+    });
+    grp.appendChild(chips);
+    scroll.appendChild(grp);
+  });
+
+  sidebar.appendChild(scroll);
+
+  sinput.addEventListener('input',function(){
+    var q=sinput.value.toLowerCase();
+    var allChips=scroll.querySelectorAll('.var-chip');
+    allChips.forEach(function(c){
+      var match=c.textContent.toLowerCase().indexOf(q)>=0||c.dataset.varkey.toLowerCase().indexOf(q)>=0;
+      c.style.display=match?'':'none';
+    });
+    var grps=scroll.querySelectorAll('.construct-group');
+    grps.forEach(function(g){
+      var vis=g.querySelectorAll('.var-chip[style=""], .var-chip:not([style])');
+      var hasVis=false;
+      g.querySelectorAll('.var-chip').forEach(function(c){if(c.style.display!=='none')hasVis=true;});
+      g.style.display=hasVis?'':'none';
+      if(q.length>0&&hasVis){g.classList.add('open');g.querySelector('.construct-header').classList.add('open');}
+    });
+  });
+
+  pane.appendChild(sidebar);
+
+  // Right column: filter bar + group bar + main panel
+  var rightCol=el('div','');rightCol.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;gap:6px;';
+  rightCol.appendChild(fbar);
+  rightCol.appendChild(gbar);
+  var mainPanel=el('div','main-panel');
+  mainPanel.id='explorer-main-'+wave;
+  rightCol.appendChild(mainPanel);
+  pane.appendChild(rightCol);
+
+  // Store effN ref for updates
+  st._effN=effN;
+  renderExplorer(mainPanel,wave,st);
+}
+
+function selectKeyVars(wave,st,mainPanel){
+  var keyVars=['DASS_Total','DASS_Depression','DASS_Anxiety','DASS_Stress','ECR_AI_Anxiety','ECR_AI_Avoidance','ANTRO_Mean','AI_MH'];
+  st.selected=keyVars[0];
+  var sidebar=mainPanel.parentElement.querySelector('.sidebar');
+  if(sidebar)updateChipSelection(sidebar,keyVars[0]);
+  renderExplorer(mainPanel,wave,st);
+}
+
+function updateChipSelection(sidebar,key){
+  sidebar.querySelectorAll('.var-chip').forEach(function(c){
+    c.classList.toggle('selected',c.dataset.varkey===key);
+  });
+}
+
+function renderExplorer(panel,wave,st){
+  clearEl(panel);
+  // Build filter from preset
+  var filters={};
+  var fp=st.filterPreset||'all';
+  if(fp==='aimh')filters.aimh=1;
+  else if(fp==='noaimh')filters.aimh=0;
+  else if(fp==='nodisc')filters.excludeDiscontinuers=true;
+  st.filters=filters;
+  var mask=buildMask(wave,filters);
+  // Update effective N
+  var effCount=0;for(var i=0;i<mask.length;i++)if(mask[i])effCount++;
+  if(st._effN)st._effN.textContent='N = '+effCount;
+
+  if(!st.selected){
+    renderOverview(panel,wave,st,mask);
+    return;
+  }
+
+  // Back to overview button
+  var backBtn=el('button','preset-btn','\u2190 Back to Overview');
+  backBtn.style.cssText='margin-bottom:10px;';
+  backBtn.addEventListener('click',function(){
+    st.selected=null;
+    var sidebar=panel.parentElement.querySelector('.sidebar');
+    if(sidebar)sidebar.querySelectorAll('.var-chip').forEach(function(c){c.classList.remove('selected');});
+    renderExplorer(panel,wave,st);
+  });
+  panel.appendChild(backBtn);
+
+  var key=st.selected;
+  var isMC=key.indexOf('__mc__')===0;
+
+  if(isMC){
+    renderMultiChoice(panel,wave,key.replace('__mc__',''),mask,st);
+    return;
+  }
+
+  var meta=getVarMeta(key);
+
+  // Title card
+  var titleCard=el('div','card');
+  var tit=el('div','card-title');
+  tit.textContent=meta.label||key;
+  var typeBadge=el('span','badge '+(isContinuous(key)?'badge-accent':isBinary(key)?'badge-orange':'badge-purple'),meta.type);
+  tit.appendChild(typeBadge);
+  titleCard.appendChild(tit);
+  panel.appendChild(titleCard);
+
+  if(st.groupBy==='none'){
+    renderSingleVar(panel,wave,key,mask);
+  } else {
+    renderGroupedVar(panel,wave,key,mask,st.groupBy);
+  }
+}
+
+function renderOverview(panel,wave,st,mask){
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var src=wave===1?DATA.w1:DATA.w2;
+  var effN=countMask(mask);
+
+  // --- Overview cards row ---
+  var cardsRow=el('div','overview-cards');
+
+  // Card 1: Total N
+  var c1=el('div','ov-card');
+  var v1=el('div','ov-val',String(effN));c1.appendChild(v1);
+  c1.appendChild(el('div','ov-sub','Total N'));
+  c1.appendChild(el('div','ov-label','Wave '+wave));
+  cardsRow.appendChild(c1);
+
+  // Card 2: AI-MH users
+  var aimhArr=src.AI_MH;var aimhCount=0;var aimhTotal=0;
+  if(aimhArr){for(var i=0;i<n;i++){if(!mask[i])continue;aimhTotal++;if(aimhArr[i]===1)aimhCount++;}}
+  var c2=el('div','ov-card');
+  var aimhPct=aimhTotal>0?(aimhCount/aimhTotal*100):0;
+  c2.appendChild(el('div','ov-val',String(aimhCount)));
+  c2.appendChild(el('div','ov-sub','AI-MH Users ('+fmt(aimhPct,1)+'%)'));
+  c2.appendChild(el('div','ov-label','of '+aimhTotal+' respondents'));
+  cardsRow.appendChild(c2);
+
+  // Card 3: Mean DASS Total
+  var dassVec=getVec(wave,'DASS_Total',mask);
+  var dassSt=descStats(dassVec);
+  var c3=el('div','ov-card');
+  c3.appendChild(el('div','ov-val',fmt(dassSt.mean,1)));
+  var dassSev='Normal';var dassBadgeCls='badge-success';
+  if(dassSt.mean>=63){dassSev='Severe';dassBadgeCls='badge-error';}
+  else if(dassSt.mean>=42){dassSev='Moderate';dassBadgeCls='badge-caution';}
+  else if(dassSt.mean>=29){dassSev='Mild';dassBadgeCls='badge-warning';}
+  var sevBadge=el('span','badge '+dassBadgeCls,dassSev);sevBadge.style.marginLeft='4px';
+  var sub3=el('div','ov-sub');sub3.textContent='Mean DASS Total ';sub3.appendChild(sevBadge);
+  c3.appendChild(sub3);
+  c3.appendChild(el('div','ov-label','SD = '+fmt(dassSt.sd,1)));
+  cardsRow.appendChild(c3);
+
+  // Card 4: Mean Age
+  var ageVec=getVec(wave,'Age',mask);
+  var ageSt=descStats(ageVec);
+  var c4=el('div','ov-card');
+  c4.appendChild(el('div','ov-val',fmt(ageSt.mean,1)));
+  c4.appendChild(el('div','ov-sub','Mean Age'));
+  c4.appendChild(el('div','ov-label','Range: '+fmt(ageSt.min,0)+' - '+fmt(ageSt.max,0)));
+  cardsRow.appendChild(c4);
+
+  panel.appendChild(cardsRow);
+
+  // --- Key distributions ---
+  var distTitle=el('div','card-title','Key Distributions');
+  distTitle.style.padding='0 0 6px 0';
+  panel.appendChild(distTitle);
+
+  var miniGrid=el('div','mini-grid');
+  var miniVars=['DASS_Total','AI_MH','ANTRO_Mean','ECR_AI_Anxiety','Freq','Gender'];
+
+  miniVars.forEach(function(mk){
+    var meta=getVarMeta(mk);
+    if(!src[mk])return;
+
+    var mCard=el('div','mini-card');
+    mCard.title='Click to explore '+mk;
+    mCard.addEventListener('click',function(){
+      st.selected=mk;
+      var sidebar=panel.parentElement.parentElement.querySelector('.sidebar');
+      if(sidebar)updateChipSelection(sidebar,mk);
+      renderExplorer(panel,wave,st);
+    });
+
+    mCard.appendChild(el('div','mini-label',meta.label||mk));
+
+    if(isContinuous(mk)){
+      // 8-bin histogram
+      var vec=getVec(wave,mk,mask);
+      if(vec.length>0){
+        var mst=descStats(vec);
+        var mn=meta.range?meta.range[0]:mst.min;
+        var mx=meta.range?meta.range[1]:mst.max;
+        var nb=8;var bw=(mx-mn)/nb;if(bw===0)bw=1;
+        var bins=new Array(nb).fill(0);
+        for(var bi=0;bi<vec.length;bi++){var bb=Math.floor((vec[bi]-mn)/bw);if(bb>=nb)bb=nb-1;if(bb<0)bb=0;bins[bb]++;}
+        var maxB=Math.max.apply(null,bins)||1;
+        var barsDiv=el('div','mini-bars');
+        for(var bi2=0;bi2<nb;bi2++){
+          var bar=el('div','mini-bar');
+          bar.style.height=Math.max(2,bins[bi2]/maxB*100)+'%';
+          barsDiv.appendChild(bar);
+        }
+        mCard.appendChild(barsDiv);
+        var statLine=el('div','');statLine.style.fontSize='10px';statLine.style.color='var(--text-muted)';statLine.style.marginTop='4px';
+        statLine.textContent='M='+fmt(mst.mean,1)+' SD='+fmt(mst.sd,1)+' N='+mst.n;
+        mCard.appendChild(statLine);
+      }
+    } else if(isBinary(mk)){
+      var vec2=getVec(wave,mk,mask);
+      var ny=0;for(var j2=0;j2<vec2.length;j2++)if(vec2[j2]===1)ny++;
+      var pctY=vec2.length>0?ny/vec2.length*100:0;
+      var propBar=el('div','mini-prop');
+      var fillY=el('div','mini-prop-fill');fillY.style.width=pctY+'%';fillY.style.background='linear-gradient(90deg,#408868,#6dd8a0)';
+      var fillN=el('div','mini-prop-fill');fillN.style.width=(100-pctY)+'%';fillN.style.background='linear-gradient(90deg,#506070,#8b98a5)';
+      propBar.appendChild(fillY);propBar.appendChild(fillN);
+      mCard.appendChild(propBar);
+      var statLine2=el('div','');statLine2.style.fontSize='10px';statLine2.style.color='var(--text-muted)';statLine2.style.marginTop='4px';
+      statLine2.textContent='Yes: '+ny+' ('+fmt(pctY,1)+'%) No: '+(vec2.length-ny);
+      mCard.appendChild(statLine2);
+    } else {
+      // Categorical / ordinal frequency bars
+      var vecR=getVecRaw(wave,mk,mask);
+      var cts={};var tot=0;
+      for(var ci=0;ci<vecR.length;ci++){var vv=vecR[ci];if(vv===null||vv===undefined)continue;cts[vv]=(cts[vv]||0)+1;tot++;}
+      var sortedK=Object.keys(cts).sort(function(a,b){return cts[b]-cts[a];});
+      var maxCt=sortedK.length>0?cts[sortedK[0]]:1;if(maxCt===0)maxCt=1;
+      var labels2=meta.labels||{};
+      var barsDiv2=el('div','mini-bars');
+      barsDiv2.style.gap='3px';
+      var showN=Math.min(sortedK.length,8);
+      for(var ci2=0;ci2<showN;ci2++){
+        var bar2=el('div','mini-bar');
+        bar2.style.height=Math.max(4,cts[sortedK[ci2]]/maxCt*100)+'%';
+        bar2.style.background=FILL_CLASSES[ci2%FILL_CLASSES.length].replace('bar-fill-','');
+        // Use gradient based on index
+        var colors=['#5ba8e0','#e8a060','#6dd8a0','#e09090','#b8a0e0','#e0d070','#90a0b0','#68c8c0'];
+        bar2.style.background='linear-gradient(180deg,'+colors[ci2%colors.length]+','+darkenColor(colors[ci2%colors.length])+')';
+        bar2.title=(labels2[sortedK[ci2]]||sortedK[ci2])+': '+cts[sortedK[ci2]];
+        barsDiv2.appendChild(bar2);
+      }
+      mCard.appendChild(barsDiv2);
+      var statLine3=el('div','');statLine3.style.fontSize='10px';statLine3.style.color='var(--text-muted)';statLine3.style.marginTop='4px';
+      statLine3.textContent=sortedK.length+' categories, N='+tot;
+      mCard.appendChild(statLine3);
+    }
+
+    miniGrid.appendChild(mCard);
+  });
+  panel.appendChild(miniGrid);
+
+  // --- Top AI Tools ---
+  if(DATA.meta.multi_choice_sets&&DATA.meta.multi_choice_sets.Tool){
+    var toolCard=el('div','card');
+    toolCard.appendChild(el('div','card-title','Top AI Tools'));
+    var mcs=DATA.meta.multi_choice_sets.Tool;
+    var items=mcs.items||[];
+    var labels3=mcs.labels||{};
+    var toolCounts=[];
+    items.forEach(function(item){
+      var arr2=src[item];
+      var cnt2=0,den2=0;
+      for(var ti=0;ti<n;ti++){
+        if(!mask[ti])continue;den2++;
+        if(arr2&&(arr2[ti]===1||arr2[ti]==='1'||arr2[ti]==='On'))cnt2++;
+      }
+      var idx2=item.split('_').pop();
+      toolCounts.push({item:item,label:labels3[idx2]||item,count:cnt2,total:den2});
+    });
+    toolCounts.sort(function(a,b){return b.count-a.count;});
+    var maxTool=toolCounts.length>0?toolCounts[0].count:1;if(maxTool===0)maxTool=1;
+    var tArea=el('div','chart-area');
+    toolCounts.forEach(function(tc,idx3){
+      if(tc.count===0)return;
+      var row=el('div','bar-row');
+      row.appendChild(el('div','bar-label',tc.label));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill '+FILL_CLASSES[idx3%FILL_CLASSES.length]);
+      fill.style.width=(tc.count/maxTool*100)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      var pct3=tc.total>0?tc.count/tc.total*100:0;
+      row.appendChild(el('div','bar-val',tc.count+' ('+fmt(pct3,1)+'%)'));
+      tArea.appendChild(row);
+    });
+    toolCard.appendChild(tArea);
+    panel.appendChild(toolCard);
+  }
+
+  // --- Highlighted Findings (auto-computed) ---
+  var findingsCard=el('div','card');
+  var findTitle=el('div','card-title','Highlighted Findings');
+  findTitle.appendChild(el('span','badge badge-caution','Auto-detected'));
+  findingsCard.appendChild(findTitle);
+
+  var findings=[];
+
+  // Compare AI-MH vs non-users on DASS
+  var dassAll=getVec(wave,'DASS_Total',mask);
+  if(dassAll.length>0 && src.AI_MH){
+    var dassMH=[],dassNoMH=[];
+    for(var fi=0;fi<n;fi++){
+      if(!mask[fi])continue;
+      var dt=src.DASS_Total?src.DASS_Total[fi]:null;
+      if(dt===null||dt===undefined||isNaN(dt))continue;
+      if(src.AI_MH[fi]===1)dassMH.push(dt);
+      else dassNoMH.push(dt);
+    }
+    if(dassMH.length>5&&dassNoMH.length>5){
+      var sMH=descStats(dassMH),sNo=descStats(dassNoMH);
+      var wt=welchT(sMH.mean,sMH.sd,sMH.n,sNo.mean,sNo.sd,sNo.n);
+      var dEff=(sMH.mean-sNo.mean)/Math.sqrt((sMH.sd*sMH.sd+sNo.sd*sNo.sd)/2);
+      var finding='AI-MH users report '+(sMH.mean>sNo.mean?'higher':'lower')+' distress than general users (M='+fmt(sMH.mean,1)+' vs '+fmt(sNo.mean,1)+', d='+fmt(dEff)+', p='+fmtP(wt.p)+')';
+      findings.push({text:finding,sig:wt.p<.05});
+    }
+  }
+
+  // ECR-AI Anxiety by AI-MH status
+  if(src.ECR_AI_Anxiety && src.AI_MH){
+    var ecrMH=[],ecrNo2=[];
+    for(var fi2=0;fi2<n;fi2++){
+      if(!mask[fi2])continue;
+      var ev=src.ECR_AI_Anxiety?src.ECR_AI_Anxiety[fi2]:null;
+      if(ev===null||ev===undefined||isNaN(ev))continue;
+      if(src.AI_MH[fi2]===1)ecrMH.push(ev);
+      else ecrNo2.push(ev);
+    }
+    if(ecrMH.length>5&&ecrNo2.length>5){
+      var sE1=descStats(ecrMH),sE2=descStats(ecrNo2);
+      var wt2=welchT(sE1.mean,sE1.sd,sE1.n,sE2.mean,sE2.sd,sE2.n);
+      var dE=(sE1.mean-sE2.mean)/Math.sqrt((sE1.sd*sE1.sd+sE2.sd*sE2.sd)/2);
+      findings.push({text:'AI-MH users show '+(sE1.mean>sE2.mean?'higher':'lower')+' AI attachment anxiety (M='+fmt(sE1.mean,1)+' vs '+fmt(sE2.mean,1)+', d='+fmt(dE)+', p='+fmtP(wt2.p)+')',sig:wt2.p<.05});
+    }
+  }
+
+  // Anthropomorphism by AI-MH status
+  if(src.ANTRO_Mean && src.AI_MH){
+    var anMH=[],anNo=[];
+    for(var fi3=0;fi3<n;fi3++){
+      if(!mask[fi3])continue;
+      var av=src.ANTRO_Mean?src.ANTRO_Mean[fi3]:null;
+      if(av===null||av===undefined||isNaN(av))continue;
+      if(src.AI_MH[fi3]===1)anMH.push(av);
+      else anNo.push(av);
+    }
+    if(anMH.length>5&&anNo.length>5){
+      var sA1=descStats(anMH),sA2=descStats(anNo);
+      var wt3=welchT(sA1.mean,sA1.sd,sA1.n,sA2.mean,sA2.sd,sA2.n);
+      var dA=(sA1.mean-sA2.mean)/Math.sqrt((sA1.sd*sA1.sd+sA2.sd*sA2.sd)/2);
+      findings.push({text:'AI-MH users score '+(sA1.mean>sA2.mean?'higher':'lower')+' on anthropomorphism (M='+fmt(sA1.mean,1)+' vs '+fmt(sA2.mean,1)+', d='+fmt(dA)+', p='+fmtP(wt3.p)+')',sig:wt3.p<.05});
+    }
+  }
+
+  // DASS-Anxiety correlation with ECR-AI-Anxiety
+  if(src.DASS_Anxiety && src.ECR_AI_Anxiety){
+    var cx1=[],cy1=[];
+    for(var fi4=0;fi4<n;fi4++){
+      if(!mask[fi4])continue;
+      var dv2=src.DASS_Anxiety?src.DASS_Anxiety[fi4]:null;
+      var ev2=src.ECR_AI_Anxiety?src.ECR_AI_Anxiety[fi4]:null;
+      if(dv2!==null&&!isNaN(dv2)&&ev2!==null&&!isNaN(ev2)){cx1.push(dv2);cy1.push(ev2);}
+    }
+    if(cx1.length>10){
+      var pr1=pearsonR(cx1,cy1);
+      findings.push({text:'DASS Anxiety correlates with AI attachment anxiety (r='+fmt(pr1.r,3)+', p='+fmtP(pr1.p)+', N='+pr1.n+')',sig:pr1.p<.05});
+    }
+  }
+
+  if(findings.length>0){
+    findings.forEach(function(f){
+      var fRow=el('div','');
+      fRow.style.cssText='padding:6px 10px;margin-bottom:4px;border-radius:var(--radius-sm);font-size:12px;line-height:1.5;border-left:3px solid '+(f.sig?'var(--caution)':'var(--border)')+';background:'+(f.sig?'rgba(224,208,112,0.06)':'var(--bg-input)')+';';
+      fRow.style.color=f.sig?'var(--text-primary)':'var(--text-secondary)';
+      var bullet=f.sig?'\u2605 ':'\u25CB ';
+      fRow.textContent=bullet+f.text;
+      findingsCard.appendChild(fRow);
+    });
+    var fLeg=el('div','');fLeg.style.cssText='font-size:10px;color:var(--text-muted);margin-top:8px;';
+    fLeg.textContent='\u2605 = statistically significant (p < .05). Click any variable in the sidebar to explore further.';
+    findingsCard.appendChild(fLeg);
+    panel.appendChild(findingsCard);
+  }
+
+  // --- MHAI Experience Summary (only if AI-MH users present) ---
+  if(aimhCount>0){
+    var mhaiCard=el('div','card');
+    var mhTitle=el('div','card-title','AI-MH User Experience');
+    mhTitle.appendChild(el('span','badge badge-success','N = '+aimhCount+' AI-MH users'));
+    mhaiCard.appendChild(mhTitle);
+
+    var aimhMask=new Uint8Array(n);
+    for(var ai=0;ai<n;ai++){if(mask[ai]&&aimhArr&&aimhArr[ai]===1)aimhMask[ai]=1;}
+
+    var mhaiVars=[
+      {key:'MHAI_overall',label:'Overall Satisfaction'},
+      {key:'MHAI_contin',label:'Intent to Continue'},
+      {key:'MHAI_usecase_emotional',label:'Emotional Comfort'},
+      {key:'MHAI_usecase_practical',label:'Practical Advice'},
+      {key:'MHAI_usecase_crisis',label:'Crisis Management'}
+    ];
+    var mhaiArea=el('div','chart-area');
+    var maxMhai=5; // All on 1-5 scale
+    mhaiVars.forEach(function(mv,midx){
+      if(!src[mv.key])return;
+      var mvec=getVec(wave,mv.key,aimhMask);
+      if(mvec.length===0)return;
+      var ms=descStats(mvec);
+      var row=el('div','bar-row');
+      row.appendChild(el('div','bar-label',mv.label));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill '+FILL_CLASSES[midx%FILL_CLASSES.length]);
+      fill.style.width=(ms.mean/maxMhai*100)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val','M = '+fmt(ms.mean)+' (SD = '+fmt(ms.sd)+')'));
+      mhaiArea.appendChild(row);
+    });
+    mhaiCard.appendChild(mhaiArea);
+
+    // Helped / recommend binary
+    var helpVars=[{key:'MHAI_helped',label:'AI Helped?'},{key:'MHAI_rec',label:'Would Recommend?'}];
+    helpVars.forEach(function(hv){
+      if(!src[hv.key])return;
+      var hvec=getVecRaw(wave,hv.key,aimhMask);
+      var hy=0,hm=0,hn=0;
+      hvec.forEach(function(v2){if(v2===1)hy++;else if(v2===2)hm++;else if(v2===0)hn++;});
+      var htotal=hy+hm+hn;
+      if(htotal===0)return;
+      var hline=el('div','');hline.style.cssText='font-size:11px;color:var(--text-secondary);margin-top:6px;';
+      hline.textContent=hv.label+': Yes '+hy+' ('+fmt(hy/htotal*100,0)+'%), Maybe '+hm+' ('+fmt(hm/htotal*100,0)+'%), No '+hn+' ('+fmt(hn/htotal*100,0)+'%)';
+      mhaiCard.appendChild(hline);
+    });
+
+    panel.appendChild(mhaiCard);
+  }
+}
+
+function renderSingleVar(panel,wave,key,mask){
+  var vec=getVec(wave,key,mask);
+  if(vec.length===0){
+    panel.appendChild(el('div','card','No data available for this variable.'));
+    return;
+  }
+
+  if(isContinuous(key)){
+    renderHistogram(panel,vec,key);
+    renderStatsCard(panel,vec,key);
+  } else if(isBinary(key)){
+    renderBinaryBar(panel,vec,key);
+  } else {
+    renderCategoricalBars(panel,wave,key,mask);
+  }
+}
+
+function renderHistogram(panel,vec,key){
+  var card=el('div','card');
+  var st=descStats(vec);
+  var meta=getVarMeta(key);
+  var mn=meta.range?meta.range[0]:st.min;
+  var mx=meta.range?meta.range[1]:st.max;
+  var nbins=Math.min(20,Math.max(8,Math.ceil(Math.sqrt(vec.length))));
+  var binW=(mx-mn)/nbins;if(binW===0)binW=1;
+  var bins=new Array(nbins).fill(0);
+  for(var i=0;i<vec.length;i++){
+    var b=Math.floor((vec[i]-mn)/binW);
+    if(b>=nbins)b=nbins-1;if(b<0)b=0;
+    bins[b]++;
+  }
+  var maxBin=Math.max.apply(null,bins)||1;
+
+  var area=el('div','chart-area');
+  for(var i=0;i<nbins;i++){
+    var row=el('div','bar-row');
+    var lo=mn+i*binW,hi=mn+(i+1)*binW;
+    var lbl=el('div','bar-label',fmt(lo,1)+' - '+fmt(hi,1));
+    lbl.style.width='100px';lbl.style.minWidth='100px';lbl.style.fontSize='10px';
+    row.appendChild(lbl);
+    var track=el('div','bar-track');
+    var fill=el('div','bar-fill bar-fill-blue');
+    fill.style.width=(bins[i]/maxBin*100)+'%';
+    track.appendChild(fill);
+    row.appendChild(track);
+    var val=el('div','bar-val',bins[i]+' ('+fmt(bins[i]/vec.length*100,1)+'%)');
+    row.appendChild(val);
+    area.appendChild(row);
+  }
+  card.appendChild(area);
+  panel.appendChild(card);
+}
+
+function renderStatsCard(panel,vec,key){
+  var card=el('div','card');
+  var tit=el('div','card-title','Summary Statistics');
+  var badge=el('span','badge badge-accent','N = '+vec.length);
+  tit.appendChild(badge);
+  card.appendChild(tit);
+  var st=descStats(vec);
+  var tbl=el('table','stats-table');
+  var thead=el('thead','');
+  var thr=el('tr','');
+  ['Statistic','Value'].forEach(function(h){thr.appendChild(el('th','',h));});
+  thead.appendChild(thr);tbl.appendChild(thead);
+  var tbody=el('tbody','');
+  [['N',st.n],['Mean',fmt(st.mean)],['SD',fmt(st.sd)],['Median',fmt(st.median)],['Min',fmt(st.min)],['Max',fmt(st.max)]].forEach(function(r){
+    var tr=el('tr','');
+    tr.appendChild(el('td','',String(r[0])));
+    tr.appendChild(el('td','',String(r[1])));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  card.appendChild(tbl);
+  panel.appendChild(card);
+}
+
+function renderBinaryBar(panel,vec,key){
+  var card=el('div','card');
+  var n1=0;for(var i=0;i<vec.length;i++)if(vec[i]===1)n1++;
+  var n0=vec.length-n1;
+  var pct1=(n1/vec.length*100);
+
+  // Donut chart
+  var donutWrap=el('div','donut-wrap');
+  var donut=el('div','donut');
+  donut.style.background='conic-gradient(#6dd8a0 0% '+pct1+'%, #506070 '+pct1+'% 100%)';
+  var hole=el('div','donut-hole');
+  hole.appendChild(el('div','donut-pct',fmt(pct1,1)+'%'));
+  hole.appendChild(el('div','donut-lbl','Yes'));
+  donut.appendChild(hole);
+  donutWrap.appendChild(donut);
+
+  var legend=el('div','donut-legend');
+  var legY=el('div','donut-leg-row');
+  var dotY=el('div','donut-leg-dot');dotY.style.background='#6dd8a0';
+  legY.appendChild(dotY);legY.appendChild(document.createTextNode('Yes: '+n1+' ('+fmt(pct1,1)+'%)'));
+  legend.appendChild(legY);
+  var legN=el('div','donut-leg-row');
+  var dotN=el('div','donut-leg-dot');dotN.style.background='#506070';
+  legN.appendChild(dotN);legN.appendChild(document.createTextNode('No: '+n0+' ('+fmt(100-pct1,1)+'%)'));
+  legend.appendChild(legN);
+  var legT=el('div','donut-leg-row');
+  legT.style.marginTop='4px';legT.style.fontSize='11px';legT.style.color='var(--text-muted)';
+  legT.textContent='Total N = '+vec.length;
+  legend.appendChild(legT);
+  donutWrap.appendChild(legend);
+  card.appendChild(donutWrap);
+
+  // Also keep the horizontal bars for clarity
+  var area=el('div','chart-area');area.style.marginTop='10px';
+  var row1=el('div','bar-row');
+  row1.appendChild(el('div','bar-label','Yes'));
+  var t1=el('div','bar-track');
+  var f1=el('div','bar-fill bar-fill-green');
+  f1.style.width=pct1+'%';
+  t1.appendChild(f1);row1.appendChild(t1);
+  row1.appendChild(el('div','bar-val',n1+' ('+fmt(pct1,1)+'%)'));
+  area.appendChild(row1);
+
+  var row0=el('div','bar-row');
+  row0.appendChild(el('div','bar-label','No'));
+  var t0=el('div','bar-track');
+  var f0=el('div','bar-fill bar-fill-muted');
+  f0.style.width=(100-pct1)+'%';
+  t0.appendChild(f0);row0.appendChild(t0);
+  row0.appendChild(el('div','bar-val',n0+' ('+fmt(100-pct1,1)+'%)'));
+  area.appendChild(row0);
+  card.appendChild(area);
+
+  panel.appendChild(card);
+}
+
+function renderCategoricalBars(panel,wave,key,mask){
+  var card=el('div','card');
+  var vec=getVecRaw(wave,key,mask);
+  var counts={};
+  var total=0;
+  for(var i=0;i<vec.length;i++){
+    var v=vec[i];if(v===null||v===undefined)continue;
+    counts[v]=(counts[v]||0)+1;total++;
+  }
+
+  var meta=getVarMeta(key);
+  var isOrdinal=meta.type==='ordinal';
+  var sorted;
+  if(isOrdinal){
+    // Ordinal: sort by numeric value to maintain natural order
+    sorted=Object.keys(counts).sort(function(a,b){return parseFloat(a)-parseFloat(b);});
+  } else {
+    // Categorical: sort by frequency (descending)
+    sorted=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
+  }
+  var maxC=sorted.length>0?Math.max.apply(null,sorted.map(function(k2){return counts[k2];})):1;
+
+  var labels=meta.labels||{};
+  var area=el('div','chart-area');
+  sorted.forEach(function(k,idx){
+    var row=el('div','bar-row');
+    var lbl=labels[k]||k;
+    row.appendChild(el('div','bar-label',String(lbl)));
+    var track=el('div','bar-track');
+    var fill=el('div','bar-fill '+FILL_CLASSES[idx%FILL_CLASSES.length]);
+    fill.style.width=(counts[k]/maxC*100)+'%';
+    track.appendChild(fill);row.appendChild(track);
+    row.appendChild(el('div','bar-val',counts[k]+' ('+fmt(counts[k]/total*100,1)+'%)'));
+    area.appendChild(row);
+  });
+  card.appendChild(area);
+  panel.appendChild(card);
+}
+
+function renderMultiChoice(panel,wave,setKey,mask,st){
+  var mcs=DATA.meta.multi_choice_sets[setKey];
+  if(!mcs)return;
+  var card=el('div','card');
+  var tit=el('div','card-title',setKey+' (Multi-Choice Set)');
+  card.appendChild(tit);
+
+  var src=wave===1?DATA.w1:DATA.w2;
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var items=mcs.items||[];
+  var labels=mcs.labels||{};
+  var counts=[];
+  var totalResp=0;
+
+  items.forEach(function(item){
+    var arr=src[item];
+    var cnt=0,den=0;
+    for(var i=0;i<n;i++){
+      if(mask&&!mask[i])continue;
+      den++;
+      if(arr&&(arr[i]===1||arr[i]==='1'||arr[i]==='On'))cnt++;
+    }
+    var idx=item.split('_').pop();
+    counts.push({item:item,label:labels[idx]||item,count:cnt,total:den});
+    if(den>totalResp)totalResp=den;
+  });
+
+  counts.sort(function(a,b){return b.count-a.count;});
+  var maxC=counts.length>0?counts[0].count:1;if(maxC===0)maxC=1;
+
+  var badge=el('span','badge badge-accent','N = '+totalResp);
+  tit.appendChild(badge);
+
+  var area=el('div','chart-area');
+  counts.forEach(function(c,idx){
+    var row=el('div','bar-row');
+    row.appendChild(el('div','bar-label',c.label));
+    var track=el('div','bar-track');
+    var fill=el('div','bar-fill '+FILL_CLASSES[idx%FILL_CLASSES.length]);
+    fill.style.width=(c.count/maxC*100)+'%';
+    track.appendChild(fill);row.appendChild(track);
+    var pct=c.total>0?c.count/c.total*100:0;
+    row.appendChild(el('div','bar-val',c.count+' ('+fmt(pct,1)+'%)'));
+    area.appendChild(row);
+  });
+  card.appendChild(area);
+  panel.appendChild(card);
+}
+
+function renderGroupedVar(panel,wave,key,baseMask,groupBy){
+  var meta=getVarMeta(key);
+  var groupDefs=getGroupDefs(wave,groupBy);
+  if(!groupDefs)return;
+
+  // Chart per group
+  var card=el('div','card');
+  var tit=el('div','card-title',meta.label||key);
+  tit.appendChild(el('span','badge badge-muted','Grouped by '+groupBy));
+  card.appendChild(tit);
+
+  if(isContinuous(key)){
+    // Bar chart of means with error bars (SD)
+    var stats=[];
+    groupDefs.forEach(function(g){
+      var gmask=applyGroupMask(wave,baseMask,groupBy,g.value);
+      var vec=getVec(wave,key,gmask);
+      var s=descStats(vec);
+      s.groupLabel=g.label;s.groupColor=g.color;
+      stats.push(s);
+    });
+    var maxMean=0;
+    stats.forEach(function(s){if(s.mean+s.sd>maxMean)maxMean=s.mean+s.sd;});
+    if(maxMean===0)maxMean=1;
+
+    var area=el('div','chart-area');
+    stats.forEach(function(s,idx){
+      var row=el('div','bar-row');
+      row.appendChild(el('div','bar-label',s.groupLabel));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill');
+      fill.style.background='linear-gradient(90deg, '+darkenColor(s.groupColor)+', '+s.groupColor+')';
+      fill.style.width=(s.n>0?(s.mean/maxMean*100):0)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val','M='+fmt(s.mean)+' (N='+s.n+')'));
+      area.appendChild(row);
+    });
+    card.appendChild(area);
+
+    // Stats table
+    var tbl=el('table','stats-table');
+    var thead=el('thead','');
+    var thr=el('tr','');
+    ['Group','N','Mean','SD','Median'].forEach(function(h){thr.appendChild(el('th','',h));});
+    thead.appendChild(thr);tbl.appendChild(thead);
+    var tbody=el('tbody','');
+    stats.forEach(function(s){
+      var tr=el('tr','');
+      tr.appendChild(el('td','',s.groupLabel));
+      tr.appendChild(el('td','',String(s.n)));
+      tr.appendChild(el('td','',fmt(s.mean)));
+      tr.appendChild(el('td','',fmt(s.sd)));
+      tr.appendChild(el('td','',fmt(s.median)));
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);card.appendChild(tbl);
+
+    // Statistical test
+    if(stats.length===2&&stats[0].n>1&&stats[1].n>1){
+      var test=welchT(stats[0].mean,stats[0].sd,stats[0].n,stats[1].mean,stats[1].sd,stats[1].n);
+      var d=(stats[0].mean-stats[1].mean)/Math.sqrt((stats[0].sd*stats[0].sd+stats[1].sd*stats[1].sd)/2);
+      var testCard=el('div','','');
+      testCard.style.marginTop='8px';testCard.style.fontSize='12px';testCard.style.color='var(--text-secondary)';
+      var pStr=fmtP(test.p);
+      var sig=test.p<.05;
+      testCard.textContent="Welch's t("+fmt(test.df,1)+") = "+fmt(test.t)+", p = "+pStr+" "+sigStars(test.p)+", d = "+fmt(d);
+      if(sig)testCard.style.color='var(--caution)';
+      card.appendChild(testCard);
+    }
+
+  } else if(isBinary(key)){
+    var area=el('div','chart-area');
+    var gstats=[];
+    groupDefs.forEach(function(g){
+      var gmask=applyGroupMask(wave,baseMask,groupBy,g.value);
+      var vec=getVec(wave,key,gmask);
+      var n1=0;for(var i=0;i<vec.length;i++)if(vec[i]===1)n1++;
+      gstats.push({label:g.label,color:g.color,n:vec.length,yes:n1,pct:vec.length>0?n1/vec.length*100:0});
+    });
+
+    gstats.forEach(function(s){
+      var row=el('div','bar-row');
+      row.appendChild(el('div','bar-label',s.label));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill');
+      fill.style.background='linear-gradient(90deg, '+darkenColor(s.color)+', '+s.color+')';
+      fill.style.width=s.pct+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val',s.yes+'/'+s.n+' ('+fmt(s.pct,1)+'%)'));
+      area.appendChild(row);
+    });
+    card.appendChild(area);
+
+    if(gstats.length===2){
+      var test=proportionZ(gstats[0].pct/100,gstats[0].n,gstats[1].pct/100,gstats[1].n);
+      var testEl=el('div','','');
+      testEl.style.marginTop='8px';testEl.style.fontSize='12px';testEl.style.color='var(--text-secondary)';
+      testEl.textContent='z = '+fmt(test.z)+', p = '+fmtP(test.p)+' '+sigStars(test.p);
+      if(test.p<.05)testEl.style.color='var(--caution)';
+      card.appendChild(testEl);
+    }
+  } else {
+    // Categorical grouped
+    var area=el('div','chart-area');
+    groupDefs.forEach(function(g,idx){
+      var gmask=applyGroupMask(wave,baseMask,groupBy,g.value);
+      var vec=getVecRaw(wave,key,gmask);
+      var counts={},total=0;
+      for(var i=0;i<vec.length;i++){if(vec[i]===null||vec[i]===undefined)continue;counts[vec[i]]=(counts[vec[i]]||0)+1;total++;}
+      var hdr=el('div','',g.label+' (N='+total+')');
+      hdr.style.fontSize='11px';hdr.style.fontWeight='600';hdr.style.color=g.color;hdr.style.marginTop=idx>0?'10px':'0';hdr.style.marginBottom='4px';
+      area.appendChild(hdr);
+      var sorted=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
+      var maxC=sorted.length>0?counts[sorted[0]]:1;
+      var labels=meta.labels||{};
+      sorted.forEach(function(k){
+        var row=el('div','bar-row');
+        row.appendChild(el('div','bar-label',labels[k]||k));
+        var track=el('div','bar-track');
+        var fill=el('div','bar-fill');
+        fill.style.background='linear-gradient(90deg, '+darkenColor(g.color)+', '+g.color+')';
+        fill.style.width=(counts[k]/maxC*100)+'%';
+        track.appendChild(fill);row.appendChild(track);
+        row.appendChild(el('div','bar-val',counts[k]+' ('+fmt(counts[k]/total*100,1)+'%)'));
+        area.appendChild(row);
+      });
+    });
+    card.appendChild(area);
+  }
+
+  panel.appendChild(card);
+}
+
+function getGroupDefs(wave,groupBy){
+  if(groupBy==='gender')return[{value:1,label:'Male',color:'#5ba8e0'},{value:2,label:'Female',color:'#e8a060'},{value:3,label:'Other',color:'#b8a0e0'}];
+  if(groupBy==='aimh')return[{value:0,label:'AI-General',color:'#90a0b0'},{value:1,label:'AI-MH',color:'#6dd8a0'}];
+  if(groupBy==='transition'&&wave===2)return[
+    {value:0,label:'Never',color:'#90a0b0'},{value:1,label:'Adopter',color:'#6dd8a0'},
+    {value:2,label:'Continuer',color:'#5ba8e0'},{value:3,label:'Discontinuer',color:'#e09090'}
+  ];
+  if(groupBy==='dass'){
+    return[{value:'normal',label:'Normal (0-28)',color:'#6dd8a0'},{value:'mild',label:'Mild (29-41)',color:'#b8d870'},
+      {value:'moderate',label:'Moderate (42-62)',color:'#e0d070'},{value:'severe',label:'Severe (63+)',color:'#e09090'}];
+  }
+  return null;
+}
+
+function applyGroupMask(wave,baseMask,groupBy,value){
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var mask=new Uint8Array(n);
+  for(var i=0;i<n;i++)mask[i]=baseMask?baseMask[i]:1;
+
+  if(groupBy==='gender'){
+    var src=wave===1?DATA.w1.Gender:DATA.w2.Gender;
+    if(src)for(var i=0;i<n;i++)if(src[i]!==value)mask[i]=0;
+  } else if(groupBy==='aimh'){
+    var src=wave===1?DATA.w1.AI_MH:DATA.w2.AI_MH;
+    if(src)for(var i=0;i<n;i++)if(src[i]!==value)mask[i]=0;
+  } else if(groupBy==='transition'&&wave===2){
+    for(var i=0;i<n;i++)if(DATA.matched.transition[i]!==value)mask[i]=0;
+  } else if(groupBy==='dass'){
+    var src=wave===1?DATA.w1.DASS_Total:DATA.w2.DASS_Total;
+    if(src){
+      for(var i=0;i<n;i++){
+        var d=src[i];
+        if(d===null||d===undefined){mask[i]=0;continue;}
+        var inRange=false;
+        if(value==='normal')inRange=d>=0&&d<=28;
+        else if(value==='mild')inRange=d>=29&&d<=41;
+        else if(value==='moderate')inRange=d>=42&&d<=62;
+        else if(value==='severe')inRange=d>=63;
+        if(!inRange)mask[i]=0;
+      }
+    }
+  }
+  return mask;
+}
+
+function darkenColor(hex){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.round(r*0.6);g=Math.round(g*0.6);b=Math.round(b*0.6);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+/* ============================================================
+   NARRATIVE INTERPRETATION GENERATOR
+   ============================================================ */
+function generateNarrative(type, result, labels) {
+  var card = el('div', 'narrative-card');
+  var h = el('h4', '', 'Interpretation');
+  card.appendChild(h);
+  var lines = [];
+
+  if (type === 'regression') {
+    var isLog = result.isLog;
+    var dvLabel = labels.dv || 'outcome';
+    var ivLabels = labels.ivs || [];
+    var ivList = ivLabels.length > 0 ? ivLabels.join(', ') : 'selected predictors';
+    var modelType = isLog ? 'Logistic regression' : 'This regression model';
+
+    if (isLog) {
+      lines.push(modelType + ' predicts ' + dvLabel + ' (binary: yes/no) from ' + ivList + ' (N=' + result.n + ', pseudo-R\u00B2=' + fmt(result.pseudoR2, 3) + ').');
+    } else {
+      lines.push(modelType + ' examines whether ' + ivList + ' predict ' + dvLabel + ' (N=' + result.n + ').');
+      lines.push('The model explains ' + fmt(result.r2 * 100, 1) + '% of variance in ' + dvLabel + ' (R\u00B2=' + fmt(result.r2, 3) + ', Adj.R\u00B2=' + fmt(result.adj_r2, 3) + ', F(' + result.df_m + ',' + result.df_res + ')=' + fmt(result.f_stat) + ', p=' + fmtP(result.f_p) + ').');
+    }
+    lines.push('');
+
+    // Build IV results sorted by p-value (skip intercept at index 0)
+    var ivResults = [];
+    for (var j = 1; j < result.beta.length; j++) {
+      ivResults.push({
+        name: result.vn[j],
+        beta: result.beta[j],
+        or: isLog ? result.or[j] : null,
+        p: result.p[j],
+        ci_lo: result.ci_lo[j],
+        ci_hi: result.ci_hi[j]
+      });
+    }
+    ivResults.sort(function(a, b) { return a.p - b.p; });
+
+    ivResults.forEach(function(iv) {
+      var sig = iv.p < 0.05;
+      if (isLog) {
+        if (sig) {
+          var orText = iv.or > 1
+            ? 'Each unit increase in ' + iv.name + ' multiplies odds by ' + fmt(iv.or, 2)
+            : 'Each unit increase reduces odds by ' + fmt(1 / iv.or, 2);
+          lines.push('\u2022 ' + iv.name + ' significantly predicts ' + dvLabel + ' (OR=' + fmt(iv.or, 3) + ', 95% CI [' + fmt(iv.ci_lo, 2) + ', ' + fmt(iv.ci_hi, 2) + '], p=' + fmtP(iv.p) + '). ' + orText + '.');
+        } else {
+          lines.push('\u2022 ' + iv.name + ' is not significant (OR=' + fmt(iv.or, 3) + ', p=' + fmtP(iv.p) + ').');
+        }
+      } else {
+        if (sig) {
+          var direction = iv.beta > 0 ? 'Higher' : 'Lower';
+          var dvDirection = iv.beta > 0 ? 'higher' : 'lower';
+          lines.push('\u2022 ' + iv.name + ' is a significant predictor (\u03B2=' + fmt(iv.beta, 3) + ', 95% CI [' + fmt(iv.ci_lo, 3) + ', ' + fmt(iv.ci_hi, 3) + '], p=' + fmtP(iv.p) + '). ' + direction + ' ' + iv.name + ' is associated with ' + dvDirection + ' ' + dvLabel + '.');
+        } else {
+          lines.push('\u2022 ' + iv.name + ' is not significant (\u03B2=' + fmt(iv.beta, 3) + ', p=' + fmtP(iv.p) + ').');
+        }
+      }
+    });
+
+  } else if (type === 'mediation') {
+    var xL = labels.x || 'X';
+    var mL = labels.m || 'M';
+    var yL = labels.y || 'Y';
+
+    lines.push('Mediation tests whether ' + mL + ' explains the path from ' + xL + ' to ' + yL + ' (N=' + result.n + ').');
+    lines.push('');
+    lines.push('Path a (' + xL + ' \u2192 ' + mL + '): b=' + fmt(result.a, 3) + ', p=' + fmtP(result.p_a) + ' \u2014 ' + (result.p_a < .05 ? 'significant' : 'not significant'));
+    lines.push('Path b (' + mL + ' \u2192 ' + yL + ', controlling for ' + xL + '): b=' + fmt(result.b, 3) + ', p=' + fmtP(result.p_b) + ' \u2014 ' + (result.p_b < .05 ? 'significant' : 'not significant'));
+    lines.push('Total effect (c): b=' + fmt(result.c, 3));
+    lines.push('Direct effect (c\'): b=' + fmt(result.cp, 3));
+    lines.push('Indirect effect (a\u00D7b): ' + fmt(result.ab, 3) + ', Sobel z=' + fmt(result.sob_z, 3) + ', p=' + fmtP(result.sob_p));
+    lines.push('');
+
+    if (result.sob_p < .05) {
+      var fullOrPartial = (result.p_a >= .05 || result.p_b >= .05 || Math.abs(result.cp) < Math.abs(result.c) * 0.2) ? 'full' : 'partial';
+      lines.push('Significant mediation detected. ' + mL + ' accounts for ' + fmt(result.pct, 1) + '% of the total effect of ' + xL + ' on ' + yL + '. The ' + fullOrPartial + ' mediation suggests that ' + xL + ' influences ' + yL + ' primarily through its effect on ' + mL + '.');
+    } else {
+      lines.push('No significant mediation. ' + mL + ' does not significantly transmit the effect of ' + xL + ' to ' + yL + '.');
+    }
+
+  } else if (type === 'moderation') {
+    var modRes = result.mod;
+    var slopes = result.slopes;
+    var dvL = labels.dv || 'DV';
+    var ivL = labels.iv || 'IV';
+    var modL = labels.mod || 'Moderator';
+
+    lines.push('Moderation tests whether ' + modL + ' changes the effect of ' + ivL + ' on ' + dvL + ' (N=' + result.n + ').');
+    lines.push('Model R\u00B2=' + fmt(modRes.r2, 3) + '. Interaction (' + ivL + ' \u00D7 ' + modL + '): b=' + fmt(modRes.beta[3], 3) + ', p=' + fmtP(modRes.p[3]) + '.');
+    lines.push('');
+
+    if (modRes.p[3] < .05) {
+      lines.push('Significant moderation: the effect of ' + ivL + ' on ' + dvL + ' depends on ' + modL + '.');
+      lines.push('Simple slopes:');
+      slopes.forEach(function(s) {
+        var interp = s.p < .05 ? (s.sl > 0 ? 'significant positive effect' : 'significant negative effect') : 'not significant';
+        lines.push('\u2022 ' + s.l + ' ' + modL + ': slope=' + fmt(s.sl, 3) + ', p=' + fmtP(s.p) + ' \u2014 ' + interp);
+      });
+      // Add descriptive narrative
+      var sigLow = slopes[0] && slopes[0].p < .05;
+      var sigHigh = slopes[2] && slopes[2].p < .05;
+      if (sigLow && !sigHigh) {
+        lines.push('');
+        lines.push('At low levels of ' + modL + ', ' + ivL + ' has a significant effect on ' + dvL + ', but this effect disappears at high levels.');
+      } else if (!sigLow && sigHigh) {
+        lines.push('');
+        lines.push('At high levels of ' + modL + ', ' + ivL + ' has a significant effect on ' + dvL + ', but not at low levels.');
+      } else if (sigLow && sigHigh && slopes[0].sl * slopes[2].sl < 0) {
+        lines.push('');
+        lines.push('The effect of ' + ivL + ' reverses direction depending on ' + modL + ' level \u2014 a crossover interaction.');
+      }
+    } else {
+      lines.push('No significant moderation. The effect of ' + ivL + ' on ' + dvL + ' does not significantly depend on ' + modL + '.');
+    }
+
+  } else if (type === 'correlation') {
+    var pairs = result.pairs || [];
+    var varLabels = labels.vars || [];
+    var nVars = varLabels.length;
+    var totalPairs = nVars * (nVars - 1) / 2;
+    var sigCount = 0;
+    var strongPos = [];
+    var strongNeg = [];
+    var strongest = null;
+
+    pairs.forEach(function(p) {
+      if (p.p < .05) sigCount++;
+      if (!strongest || Math.abs(p.r) > Math.abs(strongest.r)) strongest = p;
+      if (p.r > 0.5 && p.p < .05) strongPos.push(p.label1 + ' and ' + p.label2);
+      if (p.r < -0.3 && p.p < .05) strongNeg.push(p.label1 + ' and ' + p.label2);
+    });
+
+    lines.push('Correlation matrix for ' + nVars + ' variables (N=' + (result.n || '-') + ').');
+    lines.push(sigCount + ' of ' + totalPairs + ' correlations are significant (p<.05).');
+    if (strongest) {
+      lines.push('Strongest: ' + strongest.label1 + ' and ' + strongest.label2 + ' (r=' + fmt(strongest.r, 3) + ', p=' + fmtP(strongest.p) + ').');
+    }
+    if (strongPos.length > 0) {
+      lines.push('Strong positive associations found between: ' + strongPos.join('; ') + '.');
+    }
+    if (strongNeg.length > 0) {
+      lines.push('Notable negative associations between: ' + strongNeg.join('; ') + '.');
+    }
+  }
+
+  // Build text content as paragraph elements
+  lines.forEach(function(line) {
+    if (line === '') {
+      card.appendChild(el('br', ''));
+    } else {
+      var p = el('div', '');
+      // Apply sig/ns styling to bullet lines
+      if (line.indexOf('\u2022') === 0) {
+        if (line.indexOf('not significant') >= 0 || line.indexOf('is not') >= 0) {
+          p.className = 'narrative-ns';
+        } else if (line.indexOf('significant') >= 0) {
+          p.className = 'narrative-sig';
+        }
+      }
+      p.textContent = line;
+      card.appendChild(p);
+    }
+  });
+
+  return card;
+}
+
+function addAIInterpretButton(narrativeCard, type) {
+  var aiBtn = el('button', 'ai-btn', '\u2728 AI Interpretation');
+  aiBtn.addEventListener('click', function() {
+    var aiCard = el('div', 'narrative-card');
+    aiCard.style.borderColor = 'rgba(184,160,224,0.3)';
+    var spinner = el('div', '', 'Connecting to AI service...');
+    spinner.style.cssText = 'color:var(--text-muted);font-style:italic;';
+    aiCard.appendChild(spinner);
+    narrativeCard.parentElement.insertBefore(aiCard, narrativeCard.nextSibling);
+
+    var statsText = narrativeCard.textContent;
+
+    fetch('/api/interpret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stats: statsText, mode: type, lang: 'en' })
+    })
+    .then(function(r) {
+      if(!r.ok) throw new Error('AI endpoint not configured (HTTP '+r.status+'). Deploy with a Cloudflare Pages Function at /api/interpret to enable this feature.');
+      return r.json();
+    })
+    .then(function(data) {
+      clearEl(aiCard);
+      var disclaimer = el('div', '');
+      disclaimer.style.cssText = 'background:rgba(224,208,112,0.1);border:1px solid rgba(224,208,112,0.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--caution);';
+      disclaimer.textContent = 'This interpretation was generated by AI and may contain errors. Always verify findings against the raw data.';
+      aiCard.appendChild(disclaimer);
+      var hdr = el('h4', '', 'AI Interpretation');
+      hdr.style.color = 'var(--purple)';
+      aiCard.appendChild(hdr);
+      var txt = el('div', '');
+      txt.style.cssText = 'line-height:1.8;';
+      txt.textContent = data.interpretation || 'Could not generate interpretation.';
+      aiCard.appendChild(txt);
+    })
+    .catch(function(e) {
+      clearEl(aiCard);
+      var msg=el('div','');
+      msg.style.cssText='color:var(--text-muted);font-size:12px;line-height:1.5;';
+      msg.textContent='AI interpretation not available: '+e.message;
+      aiCard.appendChild(msg);
+    });
+
+    aiBtn.disabled = true;
+    aiBtn.textContent = 'Generating...';
+  });
+  narrativeCard.appendChild(aiBtn);
+}
+
+/* ============================================================
+   TAB 3: SIDE-BY-SIDE
+   ============================================================ */
+function buildSideBySideTab(pane){
+  if(!tabState.sbs)tabState.sbs={selected:null,groupBy:'none'};
+  var st=tabState.sbs;
+
+  // Group bar
+  var gbar=el('div','group-bar');
+  gbar.appendChild(el('label','','Variable:'));
+  var vsel=el('select','');
+  var defOpt=el('option','','-- Select a variable --');defOpt.value='';vsel.appendChild(defOpt);
+
+  // Only variables that exist in BOTH waves (meta says both AND data arrays exist)
+  var sharedVars=[];
+  var vkeys=Object.keys(DATA.meta.vars);
+  for(var i=0;i<vkeys.length;i++){
+    var k=vkeys[i],m=DATA.meta.vars[k];
+    if(m.waves&&m.waves.indexOf(1)>=0&&m.waves.indexOf(2)>=0&&DATA.w1[k]&&DATA.w2[k])sharedVars.push(k);
+  }
+
+  // Group by construct for readability
+  var byC={};
+  sharedVars.forEach(function(k){
+    var m=getVarMeta(k);var c=m.construct||'other';
+    if(!byC[c])byC[c]=[];byC[c].push(k);
+  });
+  (DATA.meta.constructs||[]).forEach(function(c){
+    if(!byC[c.key])return;
+    var og=el('optgroup','');og.label=c.label;
+    byC[c.key].forEach(function(k){
+      var opt=el('option','',getVarLabel(k));opt.value=k;og.appendChild(opt);
+    });
+    vsel.appendChild(og);
+  });
+
+  vsel.addEventListener('change',function(){st.selected=vsel.value;renderSBS(mainPanel,st);});
+  gbar.appendChild(vsel);
+
+  gbar.appendChild(el('label','','Group by:'));
+  var gsel=el('select','');
+  [{v:'none',l:'None'},{v:'transition',l:'Transition Group'}].forEach(function(o){
+    var opt=el('option','',o.l);opt.value=o.v;gsel.appendChild(opt);
+  });
+  gsel.addEventListener('change',function(){st.groupBy=gsel.value;renderSBS(mainPanel,st);});
+  gbar.appendChild(gsel);
+
+  pane.style.flexDirection='column';
+  pane.appendChild(gbar);
+
+  var mainPanel=el('div','main-panel');
+  mainPanel.style.overflowY='auto';
+  pane.appendChild(mainPanel);
+
+  renderSBS(mainPanel,st);
+}
+
+function renderSBS(panel,st){
+  clearEl(panel);
+  if(!st.selected){
+    renderChangesAtGlance(panel,st);
+    return;
+  }
+
+  // Back to overview button
+  var backBtn=el('button','preset-btn','\u2190 Back to Changes Overview');
+  backBtn.style.cssText='margin-bottom:10px;';
+  backBtn.addEventListener('click',function(){st.selected=null;renderSBS(panel,st);});
+  panel.appendChild(backBtn);
+
+  var key=st.selected;
+  var meta=getVarMeta(key);
+
+  if(st.groupBy==='none'){
+    renderSBSSingle(panel,key);
+  } else {
+    renderSBSGrouped(panel,key);
+  }
+}
+
+function renderChangesAtGlance(panel,st){
+  var matchedN=DATA.matched.link?DATA.matched.link.length:0;
+  var card=el('div','card');
+  var tit=el('div','card-title','Changes at a Glance');
+  tit.appendChild(el('span','badge badge-accent','Matched N = '+matchedN));
+  card.appendChild(tit);
+
+  var changeVars=['DASS_Total','DASS_Depression','DASS_Anxiety','DASS_Stress','ECR_AI_Avoidance','ECR_AI_Anxiety','ANTRO_Mean'];
+  var changeData=[];
+  var maxAbs=0;
+
+  changeVars.forEach(function(k){
+    if(!DATA.w1[k]||!DATA.w2[k])return;
+    var paired=getPairedVecs(k,null);
+    if(!paired||paired.w1.length<2)return;
+    var diffs=[];
+    for(var i=0;i<paired.w1.length;i++)diffs.push(paired.w2[i]-paired.w1[i]);
+    var pt=pairedT(diffs);
+    changeData.push({key:k,label:getVarLabel(k),mean:pt.mean,sd:pt.sd,p:pt.p,t:pt.t,df:pt.df,n:paired.w1.length});
+    if(Math.abs(pt.mean)>maxAbs)maxAbs=Math.abs(pt.mean);
+  });
+
+  if(maxAbs===0)maxAbs=1;
+
+  var hint=el('div','');hint.style.fontSize='11px';hint.style.color='var(--text-muted)';hint.style.marginBottom='10px';
+  hint.textContent='Click any row to explore that variable in detail.';
+  card.appendChild(hint);
+
+  changeData.forEach(function(cd){
+    var row=el('div','glance-row');
+    row.addEventListener('click',function(){
+      st.selected=cd.key;
+      // find the select element in the parent pane and update it
+      var pane=panel.parentElement;
+      var sel=pane?pane.querySelector('select'):null;
+      if(sel){sel.value=cd.key;}
+      renderSBS(panel,st);
+    });
+
+    row.appendChild(el('div','glance-label',cd.label));
+
+    var barArea=el('div','glance-bar-area');
+    var neg=el('div','glance-neg');
+    var pos=el('div','glance-pos');
+    var center=el('div','glance-center');
+
+    if(cd.mean<0){
+      var seg=el('div','glance-seg');
+      seg.style.background='linear-gradient(270deg,#a04848,#e09090)';
+      seg.style.width=(Math.abs(cd.mean)/maxAbs*100)+'%';
+      neg.appendChild(seg);
+    } else if(cd.mean>0){
+      var seg2=el('div','glance-seg');
+      seg2.style.background='linear-gradient(90deg,#408868,#6dd8a0)';
+      seg2.style.width=(Math.abs(cd.mean)/maxAbs*100)+'%';
+      pos.appendChild(seg2);
+    }
+
+    barArea.appendChild(neg);barArea.appendChild(center);barArea.appendChild(pos);
+    row.appendChild(barArea);
+
+    var star=el('div','glance-star',cd.p<.05?'*':'');
+    row.appendChild(star);
+
+    var valText=(cd.mean>=0?'+':'')+fmt(cd.mean,2)+' (t='+fmt(cd.t,2)+', p='+fmtP(cd.p)+')';
+    row.appendChild(el('div','glance-val',valText));
+
+    card.appendChild(row);
+  });
+
+  // Legend
+  var legend=el('div','');legend.style.fontSize='10px';legend.style.color='var(--text-muted)';legend.style.marginTop='10px';legend.style.borderTop='1px solid var(--border)';legend.style.paddingTop='8px';
+  legend.textContent='Red = increase (worse for distress), Green = decrease (improvement). * = p < .05 (paired t-test).';
+  card.appendChild(legend);
+
+  panel.appendChild(card);
+}
+
+function renderSBSSingle(panel,key){
+  var paired=getPairedVecs(key,null);
+  if(!paired||paired.w1.length===0){
+    panel.appendChild(el('div','card','No matched data available for this variable.'));
+    return;
+  }
+
+  var meta=getVarMeta(key);
+
+  if(isContinuous(key)){
+    // Side by side stats
+    var s1=descStats(paired.w1),s2=descStats(paired.w2);
+    var card=el('div','card');
+    var tit=el('div','card-title',meta.label||key);
+    tit.appendChild(el('span','badge badge-accent','Matched N = '+paired.w1.length));
+    card.appendChild(tit);
+
+    // Two bars: W1 mean, W2 mean
+    var maxM=Math.max(s1.mean+s1.sd,s2.mean+s2.sd);if(maxM===0)maxM=1;
+    var area=el('div','chart-area');
+
+    var row1=el('div','bar-row');
+    row1.appendChild(el('div','bar-label','Wave 1'));
+    var t1=el('div','bar-track');var f1=el('div','bar-fill bar-fill-blue');
+    f1.style.width=(s1.mean/maxM*100)+'%';t1.appendChild(f1);row1.appendChild(t1);
+    row1.appendChild(el('div','bar-val','M = '+fmt(s1.mean)+' (SD = '+fmt(s1.sd)+')'));
+    area.appendChild(row1);
+
+    var row2=el('div','bar-row');
+    row2.appendChild(el('div','bar-label','Wave 2'));
+    var t2=el('div','bar-track');var f2=el('div','bar-fill bar-fill-orange');
+    f2.style.width=(s2.mean/maxM*100)+'%';t2.appendChild(f2);row2.appendChild(t2);
+    row2.appendChild(el('div','bar-val','M = '+fmt(s2.mean)+' (SD = '+fmt(s2.sd)+')'));
+    area.appendChild(row2);
+
+    card.appendChild(area);
+
+    // Paired t-test
+    var diffs=[];
+    for(var i=0;i<paired.w1.length;i++)diffs.push(paired.w2[i]-paired.w1[i]);
+    var pt=pairedT(diffs);
+    var testEl=el('div','','');
+    testEl.style.marginTop='8px';testEl.style.fontSize='12px';testEl.style.color='var(--text-secondary)';
+    var dCohen=pt.sd>0?pt.mean/pt.sd:0;
+    testEl.textContent='Paired t('+pt.df+') = '+fmt(pt.t)+', p = '+fmtP(pt.p)+' '+sigStars(pt.p)+', d = '+fmt(dCohen);
+    if(pt.p<.05)testEl.style.color='var(--caution)';
+    card.appendChild(testEl);
+    panel.appendChild(card);
+
+    // Change score distribution
+    var csCard=el('div','card');
+    csCard.appendChild(el('div','card-title','Change Scores (W2 - W1)'));
+    var cStats=descStats(diffs);
+    var maxAbs=Math.max(Math.abs(cStats.min),Math.abs(cStats.max));if(maxAbs===0)maxAbs=1;
+    var nbins=12;
+    var binW2=maxAbs*2/nbins;
+    var bins2=new Array(nbins).fill(0);
+    for(var i=0;i<diffs.length;i++){
+      var b=Math.floor((diffs[i]+maxAbs)/binW2);
+      if(b>=nbins)b=nbins-1;if(b<0)b=0;bins2[b]++;
+    }
+    var maxBin2=Math.max.apply(null,bins2)||1;
+    var cArea=el('div','chart-area');
+    for(var i=0;i<nbins;i++){
+      var lo=-maxAbs+i*binW2,hi=-maxAbs+(i+1)*binW2;
+      var row=el('div','bar-row');
+      var lbl=el('div','bar-label',fmt(lo,1)+' to '+fmt(hi,1));
+      lbl.style.width='100px';lbl.style.minWidth='100px';lbl.style.fontSize='10px';
+      row.appendChild(lbl);
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill');
+      var midPt=(lo+hi)/2;
+      fill.style.background=midPt<0?'linear-gradient(90deg,#a04848,#e09090)':'linear-gradient(90deg,#408868,#6dd8a0)';
+      fill.style.width=(bins2[i]/maxBin2*100)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val',String(bins2[i])));
+      cArea.appendChild(row);
+    }
+    csCard.appendChild(cArea);
+
+    var csStats=el('div','','');
+    csStats.style.fontSize='12px';csStats.style.color='var(--text-secondary)';csStats.style.marginTop='8px';
+    csStats.textContent='Mean change = '+fmt(cStats.mean)+' (SD = '+fmt(cStats.sd)+')';
+    csCard.appendChild(csStats);
+    panel.appendChild(csCard);
+
+  } else if(isBinary(key)){
+    var card=el('div','card');
+    var tit=el('div','card-title',meta.label||key);
+    tit.appendChild(el('span','badge badge-accent','Matched N = '+paired.w1.length));
+    card.appendChild(tit);
+
+    var n1w1=0,n1w2=0;
+    for(var i=0;i<paired.w1.length;i++){if(paired.w1[i]===1)n1w1++;if(paired.w2[i]===1)n1w2++;}
+    var pct1=(n1w1/paired.w1.length*100),pct2=(n1w2/paired.w2.length*100);
+
+    var area=el('div','chart-area');
+    var maxP=Math.max(pct1,pct2);if(maxP===0)maxP=1;
+
+    var row1=el('div','bar-row');
+    row1.appendChild(el('div','bar-label','W1 (Yes)'));
+    var t1=el('div','bar-track');var f1=el('div','bar-fill bar-fill-blue');
+    f1.style.width=(pct1/maxP*100)+'%';t1.appendChild(f1);row1.appendChild(t1);
+    row1.appendChild(el('div','bar-val',n1w1+' ('+fmt(pct1,1)+'%)'));
+    area.appendChild(row1);
+
+    var row2=el('div','bar-row');
+    row2.appendChild(el('div','bar-label','W2 (Yes)'));
+    var t2=el('div','bar-track');var f2=el('div','bar-fill bar-fill-orange');
+    f2.style.width=(pct2/maxP*100)+'%';t2.appendChild(f2);row2.appendChild(t2);
+    row2.appendChild(el('div','bar-val',n1w2+' ('+fmt(pct2,1)+'%)'));
+    area.appendChild(row2);
+
+    card.appendChild(area);
+
+    var diff=pct2-pct1;
+    var chg=el('div','','');
+    chg.style.fontSize='12px';chg.style.marginTop='8px';
+    chg.style.color=diff>0?'var(--success)':diff<0?'var(--error)':'var(--text-secondary)';
+    chg.textContent='Change: '+(diff>0?'+':'')+fmt(diff,1)+' percentage points';
+    card.appendChild(chg);
+    panel.appendChild(card);
+  }
+}
+
+function renderSBSGrouped(panel,key){
+  var tGroups=[
+    {value:0,label:'Never',color:'#8b98a5'},
+    {value:1,label:'Adopter',color:'#6dd8a0'},
+    {value:2,label:'Continuer',color:'#5ba8e0'},
+    {value:3,label:'Discontinuer',color:'#e09090'}
+  ];
+
+  tGroups.forEach(function(tg){
+    var mask=new Uint8Array(DATA.meta.w2_n);
+    for(var i=0;i<DATA.meta.w2_n;i++)mask[i]=DATA.matched.transition[i]===tg.value?1:0;
+    var paired=getPairedVecs(key,mask);
+    if(!paired||paired.w1.length<2)return;
+
+    var card=el('div','card');
+    card.style.borderLeftColor=tg.color;card.style.borderLeftWidth='3px';
+
+    if(isContinuous(key)){
+      var s1=descStats(paired.w1),s2=descStats(paired.w2);
+      var tit=el('div','card-title',tg.label);
+      tit.appendChild(el('span','badge badge-muted','N = '+paired.w1.length));
+      card.appendChild(tit);
+
+      var maxM=Math.max(s1.mean+s1.sd,s2.mean+s2.sd);if(maxM===0)maxM=1;
+      var area=el('div','chart-area');
+      [{l:'W1',s:s1,cls:'bar-fill-blue'},{l:'W2',s:s2,cls:'bar-fill-orange'}].forEach(function(w){
+        var row=el('div','bar-row');
+        row.appendChild(el('div','bar-label',w.l));
+        var track=el('div','bar-track');var fill=el('div','bar-fill '+w.cls);
+        fill.style.width=(w.s.mean/maxM*100)+'%';track.appendChild(fill);row.appendChild(track);
+        row.appendChild(el('div','bar-val','M='+fmt(w.s.mean)));
+        area.appendChild(row);
+      });
+      card.appendChild(area);
+
+      var diffs=[];for(var i=0;i<paired.w1.length;i++)diffs.push(paired.w2[i]-paired.w1[i]);
+      var pt=pairedT(diffs);
+      var te=el('div','','');te.style.fontSize='11px';te.style.color='var(--text-secondary)';te.style.marginTop='6px';
+      te.textContent='t('+pt.df+')='+fmt(pt.t)+', p='+fmtP(pt.p)+' '+sigStars(pt.p);
+      if(pt.p<.05)te.style.color='var(--caution)';
+      card.appendChild(te);
+    }
+    panel.appendChild(card);
+  });
+}
+
+/* ============================================================
+   TAB 4: ADVANCED ANALYSIS
+   ============================================================ */
+function buildAdvancedTab(pane){
+  if(!tabState.adv)tabState.adv={mode:'correlation',waveMode:'w1',filterPreset:'all',selVars:[],dv:'',ivs:[],medX:'',medM:'',medY:'',modDV:'',modIV:'',modMod:''};
+  var st=tabState.adv;
+
+  pane.style.flexDirection='column';
+
+  // Mode bar
+  var mbar=el('div','mode-bar');
+  var modes=[{id:'correlation',l:'Correlation'},{id:'regression',l:'Regression'},{id:'mediation',l:'Mediation'},{id:'moderation',l:'Moderation'}];
+  modes.forEach(function(m){
+    var btn=el('button','mode-btn'+(st.mode===m.id?' active':''),m.l);
+    btn.addEventListener('click',function(){
+      st.mode=m.id;
+      mbar.querySelectorAll('.mode-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      var rqA=document.getElementById('adv-rq-area');if(rqA)rqA.style.display='';
+      renderAdvConfig(configArea,st);renderAdvResults(resultsPanel,st);
+      updateAdvStepBar(st);
+    });
+    mbar.appendChild(btn);
+  });
+
+  mbar.appendChild(el('div','mode-sep'));
+
+  // Wave selector
+  var wLbl=el('label','','Wave:');wLbl.style.fontSize='11px';wLbl.style.color='var(--text-secondary)';mbar.appendChild(wLbl);
+  var wSel=el('select','');
+  [{v:'w1',l:'W1 (N='+DATA.meta.w1_n+')'},{v:'w2',l:'W2 (N='+DATA.meta.w2_n+')'},{v:'cross',l:'Cross-wave (W1\u2192W2)'}].forEach(function(o){
+    var opt=el('option','',o.l);opt.value=o.v;wSel.appendChild(opt);
+  });
+  wSel.value=st.waveMode;
+  wSel.style.fontSize='11px';
+  wSel.addEventListener('change',function(){st.waveMode=wSel.value;renderAdvConfig(configArea,st);renderAdvResults(resultsPanel,st);});
+  mbar.appendChild(wSel);
+
+  mbar.appendChild(el('div','mode-sep'));
+
+  // Filter preset
+  var fLbl=el('label','','Filter:');fLbl.style.fontSize='11px';fLbl.style.color='var(--text-secondary)';mbar.appendChild(fLbl);
+  var fSel=el('select','');
+  [{v:'all',l:'All'},{v:'aimh',l:'AI-MH Only'},{v:'nodisc',l:'Exclude Discontinuers'}].forEach(function(o){
+    var opt=el('option','',o.l);opt.value=o.v;fSel.appendChild(opt);
+  });
+  fSel.value=st.filterPreset;
+  fSel.style.fontSize='11px';
+  fSel.addEventListener('change',function(){st.filterPreset=fSel.value;renderAdvResults(resultsPanel,st);});
+  mbar.appendChild(fSel);
+
+  pane.appendChild(mbar);
+
+  // Step indicator
+  var stepBar=el('div','step-bar');
+  stepBar.id='adv-step-bar';
+  var steps=[{n:'1',l:'Choose Analysis'},{n:'2',l:'Select Variables'},{n:'3',l:'Results'}];
+  steps.forEach(function(s,idx){
+    if(idx>0){stepBar.appendChild(el('span','step-arrow','\u2192'));}
+    var si=el('span','step-item',s.n+'. '+s.l);
+    si.dataset.step=String(idx);
+    stepBar.appendChild(si);
+  });
+  pane.appendChild(stepBar);
+
+  // Research question cards (shown before config)
+  var rqArea=el('div','');
+  rqArea.id='adv-rq-area';
+  pane.appendChild(rqArea);
+
+  // Config area
+  var configArea=el('div','analysis-config');
+  configArea.id='adv-config';
+  pane.appendChild(configArea);
+
+  // Results panel
+  var resultsPanel=el('div','main-panel');
+  resultsPanel.id='adv-results';
+  resultsPanel.style.overflowY='auto';
+  pane.appendChild(resultsPanel);
+
+  renderRQCards(rqArea,st,mbar,wSel,fSel,configArea,resultsPanel);
+  renderAdvConfig(configArea,st);
+  updateAdvStepBar(st);
+}
+
+function updateAdvStepBar(st){
+  var bar=document.getElementById('adv-step-bar');
+  if(!bar)return;
+  var items=bar.querySelectorAll('.step-item');
+  // Determine current step
+  var hasMode=!!st.mode;
+  var hasVars=false;
+  if(st.mode==='correlation')hasVars=st.selVars.length>=2;
+  else if(st.mode==='regression')hasVars=!!st.dv&&st.ivs.length>0;
+  else if(st.mode==='mediation')hasVars=!!st.medX&&!!st.medM&&!!st.medY;
+  else if(st.mode==='moderation')hasVars=!!st.modDV&&!!st.modIV&&!!st.modMod;
+  var curStep=hasVars?2:(hasMode?1:0);
+  items.forEach(function(si){
+    var s=parseInt(si.dataset.step);
+    si.classList.remove('active','done');
+    if(s<curStep)si.classList.add('done');
+    else if(s===curStep)si.classList.add('active');
+  });
+}
+
+function renderRQCards(area,st,mbar,wSel,fSel,configArea,resultsPanel){
+  clearEl(area);
+
+  var rqs=[
+    {icon:'\uD83D\uDD0D',q:'What predicts AI-MH use?',desc:'Logistic regression: DASS, Anthropomorphism, ECR-AI, demographics',accent:'var(--accent)',
+     mode:'regression',wave:'w1',filter:'all',dv:'AI_MH',ivs:['DASS_Total','ANTRO_Mean','ECR_AI_Anxiety','Age','Gender']},
+    {icon:'\u26A1',q:'Does distress mediate attachment \u2192 AI-MH?',desc:'Sobel mediation: ECR-Gen Anxiety \u2192 DASS \u2192 AI-MH usage',accent:'var(--orange)',
+     mode:'mediation',wave:'w1',filter:'all',medX:'ECR_Gen_Anxiety',medM:'DASS_Total',medY:'AI_MH'},
+    {icon:'\u26A0',q:'Backfire effect: Anthropomorphism \u00D7 Distress?',desc:'Moderation among AI-MH users: ANTRO \u00D7 DASS \u2192 ECR-AI-Anxiety',accent:'var(--error)',
+     mode:'moderation',wave:'w1',filter:'aimh',modDV:'ECR_AI_Anxiety',modIV:'ANTRO_Mean',modMod:'DASS_Total'},
+    {icon:'\uD83D\uDCCA',q:'How do key scales correlate?',desc:'Correlation matrix: DASS, ECR-AI, Anthropomorphism, GAAIS',accent:'var(--purple)',
+     mode:'correlation',wave:'w1',filter:'all',selVars:['DASS_Total','ECR_AI_Anxiety','ECR_AI_Avoidance','ANTRO_Mean','GAAIS_Total']},
+    {icon:'\uD83D\uDD04',q:'What changed between waves?',desc:'Cross-wave regression: W1 AI-MH + W1 DASS predicting W2 DASS',accent:'var(--success)',
+     mode:'regression',wave:'cross',filter:'all',dv:'DASS_Total',ivs:['AI_MH','DASS_Total']},
+    {icon:'\uD83C\uDD95',q:'Who becomes an AI-MH adopter?',desc:'W2 logistic regression: What predicts new AI-MH use?',accent:'var(--caution)',
+     mode:'regression',wave:'w2',filter:'all',dv:'AI_MH',ivs:['DASS_Total','ANTRO_Mean','ECR_AI_Anxiety','Age']},
+    {icon:'\uD83C\uDF0A',q:'Did AI-MH users change differently during war?',desc:'Cross-wave: Does AI-MH use moderate DASS change, controlling for war distress?',accent:'var(--error)',
+     mode:'moderation',wave:'w2',filter:'all',modDV:'DASS_Total_change',modIV:'war_distress_w2',modMod:'AI_MH'}
+  ];
+
+  // Add wave badge to each RQ card description
+  rqs.forEach(function(rq){
+    var waveBadge=rq.wave==='w1'?' [W1]':rq.wave==='w2'?' [W2]':' [W1\u2192W2]';
+    rq.desc=waveBadge+' '+rq.desc;
+  });
+
+  var grid=el('div','rq-grid');
+  rqs.forEach(function(rq){
+    var card=el('div','rq-card');
+    card.style.borderLeftColor=rq.accent;
+
+    card.appendChild(el('div','rq-icon',rq.icon));
+    card.appendChild(el('div','rq-q',rq.q));
+    card.appendChild(el('div','rq-desc',rq.desc));
+    var run=el('div','rq-run','\u25B6 Run Analysis');
+    card.appendChild(run);
+
+    card.addEventListener('click',function(){
+      // Set mode
+      st.mode=rq.mode;
+      mbar.querySelectorAll('.mode-btn').forEach(function(b){b.classList.remove('active');
+        if(b.textContent.toLowerCase()===rq.mode.toLowerCase())b.classList.add('active');
+      });
+
+      // Set wave
+      st.waveMode=rq.wave;
+      wSel.value=rq.wave;
+
+      // Set filter
+      st.filterPreset=rq.filter;
+      fSel.value=rq.filter;
+
+      // Set variables
+      if(rq.mode==='regression'){
+        st.dv=rq.dv;st.ivs=rq.ivs.slice();
+      } else if(rq.mode==='mediation'){
+        st.medX=rq.medX;st.medM=rq.medM;st.medY=rq.medY;
+      } else if(rq.mode==='moderation'){
+        st.modDV=rq.modDV;st.modIV=rq.modIV;st.modMod=rq.modMod;
+      } else if(rq.mode==='correlation'){
+        st.selVars=rq.selVars.slice();
+      }
+
+      // Hide RQ cards
+      area.style.display='none';
+
+      // Re-render config and results
+      renderAdvConfig(configArea,st);
+      renderAdvResults(resultsPanel,st);
+      updateAdvStepBar(st);
+
+      // Scroll to results
+      resultsPanel.scrollIntoView({behavior:'smooth'});
+    });
+
+    grid.appendChild(card);
+  });
+  area.appendChild(grid);
+}
+
+function getAdvFilter(st){
+  var f={};
+  if(st.filterPreset==='aimh')f.aimh=1;
+  if(st.filterPreset==='nodisc')f.excludeDiscontinuers=true;
+  return f;
+}
+
+function getAdvWave(st){return st.waveMode==='w2'||st.waveMode==='cross'?2:1;}
+function getContinuousVars(wave){
+  return getVarsForWave(wave).filter(function(k){return isContinuous(k);});
+}
+function getAllAnalysisVars(wave){
+  return getVarsForWave(wave).filter(function(k){return isContinuous(k)||isBinary(k);});
+}
+
+function renderAdvConfig(area,st){
+  clearEl(area);
+  var wave=getAdvWave(st);
+  var contVars=getContinuousVars(st.waveMode==='cross'?1:wave);
+  var allVars=getAllAnalysisVars(st.waveMode==='cross'?1:wave);
+  var dvVars=st.waveMode==='cross'?getAllAnalysisVars(2):allVars;
+  // Wave context banner
+  var wBanner=el('div','');
+  wBanner.style.cssText='background:rgba(91,168,224,.08);border:1px solid rgba(91,168,224,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--accent);';
+  if(st.waveMode==='w1')wBanner.textContent='Wave 1 (N='+DATA.meta.w1_n+') \u2014 All variables from the first survey (Nov 2025)';
+  else if(st.waveMode==='w2')wBanner.textContent='Wave 2 (N='+DATA.meta.w2_n+') \u2014 Follow-up survey (Mar 2026), includes war context and change scores';
+  else wBanner.textContent='Cross-wave \u2014 Predictors from W1 (N='+DATA.meta.w1_n+'), Outcomes from W2 (N='+DATA.meta.w2_n+')';
+  area.appendChild(wBanner);
+
+  if(st.mode==='correlation'){
+    var g=el('div','config-group');
+    g.appendChild(el('label','','Select 2+ variables (click to toggle)'));
+    var chips=el('div','iv-chips');
+    contVars.forEach(function(k){
+      var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
+      chip.title=k;
+      chip.addEventListener('click',function(){
+        var idx=st.selVars.indexOf(k);
+        if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(k);
+        chip.classList.toggle('selected');
+        renderAdvResults(document.getElementById('adv-results'),st);
+      });
+      chips.appendChild(chip);
+    });
+    g.appendChild(chips);area.appendChild(g);
+
+  } else if(st.mode==='regression'){
+    var gDV=el('div','config-group');
+    gDV.appendChild(el('label','','Dependent Variable'));
+    var dvSel=el('select','');
+    dvSel.appendChild(el('option','','-- Select DV --'));
+    dvVars.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;dvSel.appendChild(o);});
+    dvSel.value=st.dv;
+    dvSel.addEventListener('change',function(){st.dv=dvSel.value;renderAdvResults(document.getElementById('adv-results'),st);});
+    gDV.appendChild(dvSel);area.appendChild(gDV);
+
+    var gIV=el('div','config-group');
+    gIV.appendChild(el('label','','Independent Variables (click to toggle)'));
+    var ivChips=el('div','iv-chips');
+    var ivPool=st.waveMode==='cross'?getContinuousVars(1):contVars;
+    ivPool.forEach(function(k){
+      var chip=el('button','iv-chip'+(st.ivs.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
+      chip.title=k;
+      chip.addEventListener('click',function(){
+        var idx=st.ivs.indexOf(k);if(idx>=0)st.ivs.splice(idx,1);else st.ivs.push(k);
+        chip.classList.toggle('selected');
+        renderAdvResults(document.getElementById('adv-results'),st);
+      });
+      ivChips.appendChild(chip);
+    });
+    gIV.appendChild(ivChips);area.appendChild(gIV);
+
+  } else if(st.mode==='mediation'){
+    ['X (Predictor)','M (Mediator)','Y (Outcome)'].forEach(function(lbl,idx){
+      var g=el('div','config-group');
+      g.appendChild(el('label','',lbl));
+      var sel=el('select','');
+      sel.appendChild(el('option','','-- Select --'));
+      var pool=idx===2&&st.waveMode==='cross'?getContinuousVars(2):contVars;
+      pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
+      var prop=['medX','medM','medY'][idx];
+      sel.value=st[prop];
+      sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
+      g.appendChild(sel);area.appendChild(g);
+    });
+
+  } else if(st.mode==='moderation'){
+    ['DV (Outcome)','IV (Predictor)','Moderator'].forEach(function(lbl,idx){
+      var g=el('div','config-group');
+      g.appendChild(el('label','',lbl));
+      var sel=el('select','');
+      sel.appendChild(el('option','','-- Select --'));
+      var pool=(idx===0&&st.waveMode==='cross')?getContinuousVars(2):contVars;
+      pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
+      var prop=['modDV','modIV','modMod'][idx];
+      sel.value=st[prop];
+      sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
+      g.appendChild(sel);area.appendChild(g);
+    });
+  }
+}
+
+function renderAdvResults(panel,st){
+  clearEl(panel);
+  updateAdvStepBar(st);
+  // Back to research questions button
+  var backBtn=el('button','preset-btn','\u2190 Back to Research Questions');
+  backBtn.style.cssText='margin-bottom:10px;';
+  backBtn.addEventListener('click',function(){
+    st.dv='';st.ivs=[];st.selVars=[];st.medX='';st.medM='';st.medY='';st.modDV='';st.modIV='';st.modMod='';
+    clearEl(panel);
+    var rqContainer=document.getElementById('adv-rq-area');
+    if(rqContainer)rqContainer.style.display='';
+    var configArea=document.getElementById('adv-config');
+    if(configArea)renderAdvConfig(configArea,st);
+    updateAdvStepBar(st);
+  });
+  panel.appendChild(backBtn);
+  // Hide research question cards when showing results
+  var rqContainer=document.getElementById('adv-rq-area');
+  if(rqContainer)rqContainer.style.display='none';
+  if(st.mode==='correlation')renderCorrelation(panel,st);
+  else if(st.mode==='regression')renderRegression(panel,st);
+  else if(st.mode==='mediation')renderMediation(panel,st);
+  else if(st.mode==='moderation')renderModeration(panel,st);
+}
+
+function renderCorrelation(panel,st){
+  if(st.selVars.length<2){
+    panel.appendChild(el('div','placeholder','Select at least 2 variables'));
+    return;
+  }
+  var wave=getAdvWave(st);
+  var filters=getAdvFilter(st);
+  var mask=buildMask(wave,filters);
+
+  // Get aligned data
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var src=wave===1?DATA.w1:DATA.w2;
+  var vars=st.selVars;
+  var arrs=vars.map(function(v){return src[v];});
+
+  // Compute pairwise correlations
+  var nv=vars.length;
+  var rMat=[],pMat=[];
+  for(var i=0;i<nv;i++){rMat[i]=[];pMat[i]=[];
+    for(var j=0;j<nv;j++){
+      if(i===j){rMat[i][j]=1;pMat[i][j]=0;continue;}
+      var x=[],y=[];
+      for(var k=0;k<n;k++){
+        if(!mask[k])continue;
+        var a=arrs[i]?arrs[i][k]:null,b=arrs[j]?arrs[j][k]:null;
+        if(a!==null&&a!==undefined&&!isNaN(a)&&b!==null&&b!==undefined&&!isNaN(b)){x.push(a);y.push(b);}
+      }
+      var pr=pearsonR(x,y);
+      rMat[i][j]=pr.r;pMat[i][j]=pr.p;
+    }
+  }
+
+  // Heatmap
+  var card=el('div','card');
+  card.appendChild(el('div','card-title','Correlation Matrix'));
+
+  var tbl=el('table','heatmap');
+  var thead=el('thead','');
+  var thr=el('tr','');
+  thr.appendChild(el('th','',''));
+  for(var j=0;j<nv;j++){
+    var th=el('th','',getVarLabel(vars[j]).substring(0,12));
+    th.title=getVarLabel(vars[j]);
+    thr.appendChild(th);
+  }
+  thead.appendChild(thr);tbl.appendChild(thead);
+
+  var tbody=el('tbody','');
+  for(var i=0;i<nv;i++){
+    var tr=el('tr','');
+    var rlabel=el('th','',getVarLabel(vars[i]).substring(0,12));
+    rlabel.title=getVarLabel(vars[i]);rlabel.style.textAlign='right';
+    tr.appendChild(rlabel);
+    for(var j=0;j<nv;j++){
+      var td=el('td','',fmt(rMat[i][j])+sigStars(pMat[i][j]));
+      // Color by value
+      var absR=Math.abs(rMat[i][j]);
+      var alpha=Math.min(0.7,absR);
+      if(i===j)td.style.background='rgba(91,168,224,0.1)';
+      else if(rMat[i][j]>0)td.style.background='rgba(109,216,160,'+alpha+')';
+      else td.style.background='rgba(224,144,144,'+alpha+')';
+      td.style.color=absR>0.3?'#fff':'var(--text-primary)';
+      td.style.fontSize='11px';
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);
+  card.appendChild(tbl);
+  panel.appendChild(card);
+
+  // Detail table
+  var dCard=el('div','card');
+  dCard.appendChild(el('div','card-title','Pairwise Correlations'));
+  var dtbl=el('table','stats-table');
+  var dth=el('thead','');
+  var dthr=el('tr','');
+  ['Pair','r','p','N','Sig'].forEach(function(h){dthr.appendChild(el('th','',h));});
+  dth.appendChild(dthr);dtbl.appendChild(dth);
+  var dtb=el('tbody','');
+  for(var i=0;i<nv;i++){
+    for(var j=i+1;j<nv;j++){
+      var tr=el('tr','');
+      tr.appendChild(el('td','',getVarLabel(vars[i]).substring(0,15)+' x '+getVarLabel(vars[j]).substring(0,15)));
+      tr.appendChild(el('td','',fmt(rMat[i][j],3)));
+      var ptd=el('td','',fmtP(pMat[i][j]));if(pMat[i][j]<.05)ptd.className='sig';
+      tr.appendChild(ptd);
+      // Count N
+      var x2=[],y2=[];
+      for(var k=0;k<n;k++){
+        if(!mask[k])continue;
+        var a=arrs[i]?arrs[i][k]:null,b=arrs[j]?arrs[j][k]:null;
+        if(a!==null&&!isNaN(a)&&b!==null&&!isNaN(b)){x2.push(1);}
+      }
+      tr.appendChild(el('td','',String(x2.length)));
+      var stEl=el('td','',sigStars(pMat[i][j]));if(pMat[i][j]<.05)stEl.className='sig';
+      tr.appendChild(stEl);
+      dtb.appendChild(tr);
+    }
+  }
+  dtbl.appendChild(dtb);dCard.appendChild(dtbl);
+  panel.appendChild(dCard);
+
+  // Narrative interpretation for correlation
+  // Build pairs array for the narrative generator
+  var corPairs = [];
+  var corN = 0;
+  for (var ci = 0; ci < nv; ci++) {
+    for (var cj = ci + 1; cj < nv; cj++) {
+      // Count pairwise N
+      var cx = [], cy = [];
+      for (var ck = 0; ck < n; ck++) {
+        if (!mask[ck]) continue;
+        var ca = arrs[ci] ? arrs[ci][ck] : null, cb = arrs[cj] ? arrs[cj][ck] : null;
+        if (ca !== null && !isNaN(ca) && cb !== null && !isNaN(cb)) { cx.push(1); }
+      }
+      corPairs.push({ label1: getVarLabel(vars[ci]), label2: getVarLabel(vars[cj]), r: rMat[ci][cj], p: pMat[ci][cj] });
+      if (cx.length > corN) corN = cx.length;
+    }
+  }
+  var narrativeCard = generateNarrative('correlation', { pairs: corPairs, n: corN }, { vars: vars.map(function(v) { return getVarLabel(v); }) });
+  if (narrativeCard) {
+    panel.appendChild(narrativeCard);
+    addAIInterpretButton(narrativeCard, 'correlation');
+  }
+}
+
+function renderRegression(panel,st){
+  if(!st.dv||st.ivs.length===0){
+    panel.appendChild(el('div','placeholder','Select a DV and at least one IV'));
+    return;
+  }
+
+  var wave=getAdvWave(st);
+  var filters=getAdvFilter(st);
+  var mask=buildMask(wave,filters);
+  var isCross=st.waveMode==='cross';
+  var dvIsBinary=isBinary(st.dv);
+
+  // Build aligned data
+  var allVars=st.ivs.slice();
+  var y=[],X=[];
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+
+  if(isCross){
+    // IVs from W1 (via matched.link), DV from W2
+    var dvArr=DATA.w2[st.dv];
+    var ivArrs=allVars.map(function(v){return DATA.w1[v];});
+    for(var i=0;i<DATA.meta.w2_n;i++){
+      if(!mask[i])continue;
+      var w1i=DATA.matched.link[i];
+      if(w1i===null||w1i===undefined)continue;
+      var yv=dvArr?dvArr[i]:null;
+      if(yv===null||yv===undefined||isNaN(yv))continue;
+      var row=[1];var ok=true;
+      for(var j=0;j<ivArrs.length;j++){
+        var v=ivArrs[j]?ivArrs[j][w1i]:null;
+        if(v===null||v===undefined||isNaN(v)){ok=false;break;}
+        row.push(v);
+      }
+      if(!ok)continue;
+      y.push(yv);X.push(row);
+    }
+  } else {
+    var src=wave===1?DATA.w1:DATA.w2;
+    var dvArr2=src[st.dv];
+    var ivArrs2=allVars.map(function(v){return src[v];});
+    for(var i=0;i<n;i++){
+      if(!mask[i])continue;
+      var yv=dvArr2?dvArr2[i]:null;
+      if(yv===null||yv===undefined||isNaN(yv))continue;
+      var row=[1];var ok=true;
+      for(var j=0;j<ivArrs2.length;j++){
+        var v=ivArrs2[j]?ivArrs2[j][i]:null;
+        if(v===null||v===undefined||isNaN(v)){ok=false;break;}
+        row.push(v);
+      }
+      if(!ok)continue;
+      y.push(yv);X.push(row);
+    }
+  }
+
+  if(y.length<allVars.length+5){
+    panel.appendChild(el('div','card','Insufficient data (N = '+y.length+')'));
+    return;
+  }
+
+  var vnames=['(Intercept)'].concat(allVars.map(function(k){return getVarLabel(k);}));
+  var result=dvIsBinary?logReg(y,X,vnames):olsReg(y,X,vnames);
+  if(result.error){
+    panel.appendChild(el('div','card','Model error: '+result.error));
+    return;
+  }
+
+  // Model summary
+  var sumCard=el('div','card');
+  var tit=el('div','card-title',(dvIsBinary?'Logistic':'Linear')+' Regression');
+  tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  sumCard.appendChild(tit);
+
+  var sumStats=el('div','');
+  sumStats.style.fontSize='12px';sumStats.style.color='var(--text-secondary)';sumStats.style.marginBottom='10px';
+  if(dvIsBinary){
+    sumStats.textContent='McFadden R\u00B2 = '+fmt(result.pseudoR2,3);
+  } else {
+    sumStats.textContent='R\u00B2 = '+fmt(result.r2,3)+', Adj. R\u00B2 = '+fmt(result.adj_r2,3)+', F('+result.df_m+','+result.df_res+') = '+fmt(result.f_stat)+', p = '+fmtP(result.f_p);
+  }
+  sumCard.appendChild(sumStats);
+
+  // Forest plot (skip intercept)
+  if(!dvIsBinary){
+    var maxAbs=0;
+    for(var j=1;j<result.beta.length;j++){
+      var hi=Math.abs(result.ci_hi[j]),lo=Math.abs(result.ci_lo[j]);
+      maxAbs=Math.max(maxAbs,hi,lo);
+    }
+    if(maxAbs===0)maxAbs=1;
+
+    var fArea=el('div','chart-area');
+    for(var j=1;j<result.beta.length;j++){
+      var row=el('div','forest-row');
+      row.appendChild(el('div','forest-label',result.vn[j]));
+      var track=el('div','forest-track');
+      // Zero line at center
+      var zl=el('div','forest-zero');
+      zl.style.left='50%';
+      track.appendChild(zl);
+      // CI bar
+      var ciLo=result.ci_lo[j],ciHi=result.ci_hi[j];
+      var leftPct=50+(ciLo/maxAbs)*50;
+      var rightPct=50+(ciHi/maxAbs)*50;
+      leftPct=Math.max(0,Math.min(100,leftPct));
+      rightPct=Math.max(0,Math.min(100,rightPct));
+      var ci=el('div','forest-ci');
+      ci.style.left=leftPct+'%';ci.style.width=Math.max(2,rightPct-leftPct)+'%';
+      track.appendChild(ci);
+      // Point estimate
+      var dotPct=50+(result.beta[j]/maxAbs)*50;
+      dotPct=Math.max(2,Math.min(98,dotPct));
+      var dot=el('div','forest-dot');
+      dot.style.left='calc('+dotPct+'% - 6px)';
+      if(result.p[j]<.05)dot.style.background='var(--caution)';
+      track.appendChild(dot);
+      row.appendChild(track);
+      row.appendChild(el('div','forest-val','b='+fmt(result.beta[j])+' '+sigStars(result.p[j])));
+      fArea.appendChild(row);
+    }
+    sumCard.appendChild(fArea);
+  }
+
+  panel.appendChild(sumCard);
+
+  // Coefficient table
+  var tCard=el('div','card');
+  tCard.appendChild(el('div','card-title','Coefficients'));
+  var tbl=el('table','stats-table');
+  var thead=el('thead','');
+  var thr=el('tr','');
+  var hdrs=dvIsBinary?['Term','B','OR','SE','z','p','95% CI']:['Term','B','SE','t','p','95% CI'];
+  hdrs.forEach(function(h){thr.appendChild(el('th','',h));});
+  thead.appendChild(thr);tbl.appendChild(thead);
+  var tbody=el('tbody','');
+  for(var j=0;j<result.beta.length;j++){
+    var tr=el('tr','');
+    tr.appendChild(el('td','',result.vn[j]));
+    tr.appendChild(el('td','',fmt(result.beta[j],3)));
+    if(dvIsBinary)tr.appendChild(el('td','',fmt(result.or[j],3)));
+    tr.appendChild(el('td','',fmt(result.se[j],3)));
+    tr.appendChild(el('td','',fmt(dvIsBinary?result.z[j]:result.t[j],3)));
+    var ptd=el('td','',fmtP(result.p[j])+' '+sigStars(result.p[j]));
+    if(result.p[j]<.05)ptd.className='sig';
+    tr.appendChild(ptd);
+    tr.appendChild(el('td','','['+fmt(result.ci_lo[j],3)+', '+fmt(result.ci_hi[j],3)+']'));
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);tCard.appendChild(tbl);
+  panel.appendChild(tCard);
+
+  // Narrative interpretation
+  var ivLabels = allVars.map(function(k) { return getVarLabel(k); });
+  var narrativeCard = generateNarrative('regression', result, { dv: getVarLabel(st.dv), ivs: ivLabels });
+  if (narrativeCard) {
+    panel.appendChild(narrativeCard);
+    addAIInterpretButton(narrativeCard, 'regression');
+  }
+}
+
+function renderMediation(panel,st){
+  if(!st.medX||!st.medM||!st.medY){
+    panel.appendChild(el('div','placeholder','Select X, M, and Y variables'));
+    return;
+  }
+
+  var wave=getAdvWave(st);
+  var filters=getAdvFilter(st);
+  var mask=buildMask(wave,filters);
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var src=wave===1?DATA.w1:DATA.w2;
+
+  var xArr=src[st.medX],mArr=src[st.medM],yArr=src[st.medY];
+  var x=[],m=[],y=[];
+  for(var i=0;i<n;i++){
+    if(!mask[i])continue;
+    var xv=xArr?xArr[i]:null,mv=mArr?mArr[i]:null,yv=yArr?yArr[i]:null;
+    if(xv!==null&&!isNaN(xv)&&mv!==null&&!isNaN(mv)&&yv!==null&&!isNaN(yv)){
+      x.push(xv);m.push(mv);y.push(yv);
+    }
+  }
+
+  if(x.length<10){
+    panel.appendChild(el('div','card','Insufficient data (N = '+x.length+')'));
+    return;
+  }
+
+  var result=sobelMed(x,m,y);
+  if(result.error){
+    panel.appendChild(el('div','card','Mediation error: '+result.error));
+    return;
+  }
+
+  // Path diagram
+  var card=el('div','card');
+  var tit=el('div','card-title','Mediation Analysis (Sobel Test)');
+  tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  card.appendChild(tit);
+
+  var diagram=el('div','path-diagram');
+
+  // X node
+  var xNode=el('div','path-node',getVarLabel(st.medX));
+  diagram.appendChild(xNode);
+
+  // a arrow
+  var aArrow=el('div','path-arrow');
+  var aCoef=el('div','coef','a = '+fmt(result.a,3)+sigStars(result.p_a));
+  if(result.p_a<.05)aCoef.style.color='var(--caution)';
+  aArrow.appendChild(aCoef);
+  var aLine=el('div','line');aArrow.appendChild(aLine);
+  diagram.appendChild(aArrow);
+
+  // M node
+  var mNode=el('div','path-node',getVarLabel(st.medM));
+  diagram.appendChild(mNode);
+
+  // b arrow
+  var bArrow=el('div','path-arrow');
+  var bCoef=el('div','coef','b = '+fmt(result.b,3)+sigStars(result.p_b));
+  if(result.p_b<.05)bCoef.style.color='var(--caution)';
+  bArrow.appendChild(bCoef);
+  var bLine=el('div','line');bArrow.appendChild(bLine);
+  diagram.appendChild(bArrow);
+
+  // Y node
+  var yNode=el('div','path-node',getVarLabel(st.medY));
+  diagram.appendChild(yNode);
+
+  card.appendChild(diagram);
+
+  // Results table
+  var tbl=el('table','stats-table');
+  var tbody=el('tbody','');
+  var rows=[
+    ['Total effect (c)',fmt(result.c,3)],
+    ['Direct effect (c\')',fmt(result.cp,3)],
+    ['Indirect effect (a*b)',fmt(result.ab,3)],
+    ['Sobel Z',fmt(result.sob_z,3)],
+    ['Sobel p',fmtP(result.sob_p)+' '+sigStars(result.sob_p)],
+    ['% Mediated',fmt(result.pct,1)+'%']
+  ];
+  rows.forEach(function(r){
+    var tr=el('tr','');
+    tr.appendChild(el('td','',r[0]));
+    var td=el('td','',r[1]);
+    if(r[0]==='Sobel p'&&result.sob_p<.05)td.className='sig';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);card.appendChild(tbl);
+
+  // Interpretation
+  var interp=el('div','');
+  interp.style.fontSize='12px';interp.style.marginTop='10px';interp.style.padding='8px';
+  interp.style.background='var(--bg-input)';interp.style.borderRadius='var(--radius-sm)';
+  interp.style.color='var(--text-secondary)';
+  if(result.sob_p<.05){
+    interp.textContent='Significant mediation: '+getVarLabel(st.medM)+' mediates the relationship between '+getVarLabel(st.medX)+' and '+getVarLabel(st.medY)+' (Sobel Z = '+fmt(result.sob_z)+', p = '+fmtP(result.sob_p)+'), accounting for '+fmt(result.pct,1)+'% of the total effect.';
+    interp.style.borderLeft='3px solid var(--caution)';
+  } else {
+    interp.textContent='No significant mediation detected (Sobel Z = '+fmt(result.sob_z)+', p = '+fmtP(result.sob_p)+').';
+  }
+  card.appendChild(interp);
+  panel.appendChild(card);
+
+  // Narrative interpretation
+  var narrativeCard = generateNarrative('mediation', result, { x: getVarLabel(st.medX), m: getVarLabel(st.medM), y: getVarLabel(st.medY) });
+  if (narrativeCard) {
+    panel.appendChild(narrativeCard);
+    addAIInterpretButton(narrativeCard, 'mediation');
+  }
+}
+
+function renderModeration(panel,st){
+  if(!st.modDV||!st.modIV||!st.modMod){
+    panel.appendChild(el('div','placeholder','Select DV, IV, and Moderator'));
+    return;
+  }
+
+  var wave=getAdvWave(st);
+  var filters=getAdvFilter(st);
+  var mask=buildMask(wave,filters);
+  var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  var src=wave===1?DATA.w1:DATA.w2;
+
+  var dvArr=src[st.modDV],ivArr=src[st.modIV],modArr=src[st.modMod];
+  var yv=[],xv=[],mv=[];
+  for(var i=0;i<n;i++){
+    if(!mask[i])continue;
+    var d=dvArr?dvArr[i]:null,x2=ivArr?ivArr[i]:null,m2=modArr?modArr[i]:null;
+    if(d!==null&&!isNaN(d)&&x2!==null&&!isNaN(x2)&&m2!==null&&!isNaN(m2)){
+      yv.push(d);xv.push(x2);mv.push(m2);
+    }
+  }
+
+  if(yv.length<10){
+    panel.appendChild(el('div','card','Insufficient data (N = '+yv.length+')'));
+    return;
+  }
+
+  var result=modAnalysis(yv,xv,mv);
+  if(result.error){
+    panel.appendChild(el('div','card','Moderation error: '+result.error));
+    return;
+  }
+
+  // Model card
+  var card=el('div','card');
+  var tit=el('div','card-title','Moderation Analysis');
+  tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  card.appendChild(tit);
+
+  var modRes=result.mod;
+  var sumStats=el('div','');
+  sumStats.style.fontSize='12px';sumStats.style.color='var(--text-secondary)';sumStats.style.marginBottom='10px';
+  sumStats.textContent='R\u00B2 = '+fmt(modRes.r2,3)+', F('+modRes.df_m+','+modRes.df_res+') = '+fmt(modRes.f_stat)+', p = '+fmtP(modRes.f_p);
+  card.appendChild(sumStats);
+
+  // Coefficient table
+  var tbl=el('table','stats-table');
+  var thead=el('thead','');
+  var thr=el('tr','');
+  ['Term','B','SE','t','p'].forEach(function(h){thr.appendChild(el('th','',h));});
+  thead.appendChild(thr);tbl.appendChild(thead);
+  var tbody=el('tbody','');
+  for(var j=0;j<modRes.beta.length;j++){
+    var tr=el('tr','');
+    tr.appendChild(el('td','',modRes.vn[j]));
+    tr.appendChild(el('td','',fmt(modRes.beta[j],3)));
+    tr.appendChild(el('td','',fmt(modRes.se[j],3)));
+    tr.appendChild(el('td','',fmt(modRes.t[j],3)));
+    var ptd=el('td','',fmtP(modRes.p[j])+' '+sigStars(modRes.p[j]));
+    if(modRes.p[j]<.05)ptd.className='sig';
+    tr.appendChild(ptd);
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);card.appendChild(tbl);
+
+  // Interaction significance
+  var intP=modRes.p[3];
+  var intNote=el('div','');
+  intNote.style.fontSize='12px';intNote.style.marginTop='8px';intNote.style.padding='6px 8px';
+  intNote.style.borderRadius='var(--radius-sm)';
+  if(intP<.05){
+    intNote.style.background='rgba(224,208,112,.1)';intNote.style.color='var(--caution)';
+    intNote.textContent='Significant interaction (p = '+fmtP(intP)+'). Simple slopes below show how the effect of '+getVarLabel(st.modIV)+' on '+getVarLabel(st.modDV)+' varies at different levels of '+getVarLabel(st.modMod)+'.';
+  } else {
+    intNote.style.background='var(--bg-input)';intNote.style.color='var(--text-secondary)';
+    intNote.textContent='Interaction not significant (p = '+fmtP(intP)+'). Simple slopes shown for reference.';
+  }
+  card.appendChild(intNote);
+  panel.appendChild(card);
+
+  // Simple slopes
+  var slCard=el('div','card');
+  slCard.appendChild(el('div','card-title','Simple Slopes'));
+  var slTbl=el('table','stats-table');
+  var slTh=el('thead','');
+  var slThr=el('tr','');
+  ['Level','Slope','SE','t','p'].forEach(function(h){slThr.appendChild(el('th','',h));});
+  slTh.appendChild(slThr);slTbl.appendChild(slTh);
+  var slTb=el('tbody','');
+  result.slopes.forEach(function(s){
+    var tr=el('tr','');
+    tr.appendChild(el('td','',s.l));
+    tr.appendChild(el('td','',fmt(s.sl,3)));
+    tr.appendChild(el('td','',fmt(s.se,3)));
+    tr.appendChild(el('td','',fmt(s.t,3)));
+    var ptd=el('td','',fmtP(s.p)+' '+sigStars(s.p));
+    if(s.p<.05)ptd.className='sig';
+    tr.appendChild(ptd);
+    slTb.appendChild(tr);
+  });
+  slTbl.appendChild(slTb);slCard.appendChild(slTbl);
+
+  // Slope visualization: colored bars showing slope magnitude and direction
+  var slopeViz=el('div','slope-viz');
+  var maxSlope=0;
+  result.slopes.forEach(function(s){if(Math.abs(s.sl)>maxSlope)maxSlope=Math.abs(s.sl);});
+  if(maxSlope===0)maxSlope=1;
+
+  var slopeColors=['#5ba8e0','#b8a0e0','#e8a060'];
+  result.slopes.forEach(function(s,idx){
+    var wrap=el('div','slope-bar-wrap');
+    wrap.appendChild(el('div','slope-bar-label',s.l));
+
+    var track=el('div','slope-bar-track');
+    var centerLine=el('div','slope-bar-center');
+    track.appendChild(centerLine);
+
+    var fill=el('div','slope-bar-fill');
+    var pctWidth=(Math.abs(s.sl)/maxSlope)*48;
+    if(s.sl>=0){
+      fill.style.left='50%';
+      fill.style.width=pctWidth+'%';
+      fill.style.background='linear-gradient(90deg,'+darkenColor(slopeColors[idx])+','+slopeColors[idx]+')';
+    } else {
+      fill.style.left=(50-pctWidth)+'%';
+      fill.style.width=pctWidth+'%';
+      fill.style.background='linear-gradient(90deg,'+slopeColors[idx]+','+darkenColor(slopeColors[idx])+')';
+    }
+    if(s.p<.05)fill.style.boxShadow='0 0 6px '+slopeColors[idx];
+    track.appendChild(fill);
+    wrap.appendChild(track);
+
+    var valStr='b = '+fmt(s.sl,3);
+    if(s.p<.05)valStr+=' *';
+    var valEl=el('div','slope-bar-val',valStr);
+    if(s.p<.05)valEl.style.color='var(--caution)';
+    wrap.appendChild(valEl);
+
+    slopeViz.appendChild(wrap);
+  });
+  slCard.appendChild(slopeViz);
+
+  // Interpretation note for slopes
+  var slopeNote=el('div','');
+  slopeNote.style.fontSize='11px';slopeNote.style.color='var(--text-muted)';slopeNote.style.marginTop='8px';
+  slopeNote.style.padding='6px 8px';slopeNote.style.background='var(--bg-input)';slopeNote.style.borderRadius='var(--radius-sm)';
+  var sigSlopes=result.slopes.filter(function(s2){return s2.p<.05;});
+  if(sigSlopes.length>0){
+    slopeNote.textContent='Significant slopes marked with *. The effect of '+getVarLabel(st.modIV)+' on '+getVarLabel(st.modDV)+' is significant at '+sigSlopes.map(function(s3){return s3.l;}).join(' and ')+' levels of '+getVarLabel(st.modMod)+'.';
+    slopeNote.style.borderLeft='3px solid var(--caution)';
+  } else {
+    slopeNote.textContent='No simple slopes reached significance at p < .05.';
+  }
+  slCard.appendChild(slopeNote);
+
+  panel.appendChild(slCard);
+
+  // Narrative interpretation
+  var narrativeCard = generateNarrative('moderation', result, { dv: getVarLabel(st.modDV), iv: getVarLabel(st.modIV), mod: getVarLabel(st.modMod) });
+  if (narrativeCard) {
+    panel.appendChild(narrativeCard);
+    addAIInterpretButton(narrativeCard, 'moderation');
+  }
+}
+
+/* ============================================================
+   TAB 5: TRANSITION GROUPS
+   ============================================================ */
+function buildTransitionTab(pane){
+  pane.style.flexDirection='column';
+
+  // Header
+  var hbar=el('div','group-bar');
+  hbar.appendChild(el('label','','Transition Group Analysis'));
+  var effN=el('span','eff-n','Matched N = '+DATA.meta.w2_n);
+  hbar.appendChild(effN);
+  pane.appendChild(hbar);
+
+  var mainPanel=el('div','main-panel');
+  mainPanel.style.overflowY='auto';
+  pane.appendChild(mainPanel);
+
+  renderTransitionTab(mainPanel);
+}
+
+function renderTransitionTab(panel){
+  clearEl(panel);
+
+  var tGroups=[
+    {value:0,label:'Never Used AI-MH',color:'#8b98a5',badgeCls:'badge-muted'},
+    {value:1,label:'Adopter (No\u2192Yes)',color:'#6dd8a0',badgeCls:'badge-success'},
+    {value:2,label:'Continuer (Yes\u2192Yes)',color:'#5ba8e0',badgeCls:'badge-accent'},
+    {value:3,label:'Discontinuer (Yes\u2192No)',color:'#e09090',badgeCls:'badge-error'}
+  ];
+
+  // Count per group
+  var counts={};
+  tGroups.forEach(function(g){counts[g.value]=0;});
+  for(var i=0;i<DATA.meta.w2_n;i++){
+    var t=DATA.matched.transition[i];
+    if(counts[t]!==undefined)counts[t]++;
+  }
+
+  // Overview card
+  var ovCard=el('div','card');
+  ovCard.appendChild(el('div','card-title','Transition Group Overview'));
+  var maxCnt=Math.max.apply(null,tGroups.map(function(g){return counts[g.value];}));
+  if(maxCnt===0)maxCnt=1;
+  var area=el('div','chart-area');
+  tGroups.forEach(function(g){
+    var row=el('div','bar-row');
+    row.appendChild(el('div','bar-label',g.label));
+    var track=el('div','bar-track');
+    var fill=el('div','bar-fill');
+    fill.style.background='linear-gradient(90deg, '+darkenColor(g.color)+', '+g.color+')';
+    fill.style.width=(counts[g.value]/maxCnt*100)+'%';
+    track.appendChild(fill);row.appendChild(track);
+    var pct=DATA.meta.w2_n>0?counts[g.value]/DATA.meta.w2_n*100:0;
+    row.appendChild(el('div','bar-val',counts[g.value]+' ('+fmt(pct,1)+'%)'));
+    area.appendChild(row);
+  });
+  ovCard.appendChild(area);
+  panel.appendChild(ovCard);
+
+  // 4-panel grid
+  var grid=el('div','trans-grid');
+
+  tGroups.forEach(function(tg){
+    var tpanel=el('div','trans-panel');
+    tpanel.style.borderTopColor=tg.color;tpanel.style.borderTopWidth='3px';
+
+    var h3=el('h3','');
+    h3.style.color=tg.color;
+    h3.textContent=tg.label;
+    var badge=el('span','badge '+tg.badgeCls,'N = '+counts[tg.value]);
+    h3.appendChild(badge);
+    tpanel.appendChild(h3);
+
+    // Demographics for this group
+    var mask=new Uint8Array(DATA.meta.w2_n);
+    for(var i=0;i<DATA.meta.w2_n;i++)mask[i]=DATA.matched.transition[i]===tg.value?1:0;
+
+    // Gender breakdown
+    var genderVec=getVecRaw(2,'Gender',mask);
+    var gCounts={1:0,2:0,3:0};
+    genderVec.forEach(function(v){if(gCounts[v]!==undefined)gCounts[v]++;});
+    var gTotal=genderVec.length;
+    var demDiv=el('div','');demDiv.style.fontSize='11px';demDiv.style.color='var(--text-secondary)';demDiv.style.marginBottom='8px';
+    if(gTotal>0){
+      demDiv.textContent='Male: '+gCounts[1]+' ('+fmt(gCounts[1]/gTotal*100,0)+'%) | Female: '+gCounts[2]+' ('+fmt(gCounts[2]/gTotal*100,0)+'%)';
+    }
+    tpanel.appendChild(demDiv);
+
+    // Key scale means
+    var keyVars=['DASS_Total','ECR_AI_Anxiety','ECR_AI_Avoidance','ANTRO_Mean'];
+    var availVars=keyVars.filter(function(k){return DATA.w2[k];});
+
+    if(availVars.length>0){
+      var scaleDiv=el('div','');
+      availVars.forEach(function(k){
+        var vec=getVec(2,k,mask);
+        var s=descStats(vec);
+        if(s.n===0)return;
+
+        // Also get W1 mean for matched participants
+        var paired=getPairedVecs(k,mask);
+        var w1s=paired?descStats(paired.w1):{n:0};
+
+        var row=el('div','');row.style.fontSize='11px';row.style.marginBottom='4px';
+        var lbl=el('span','',getVarLabel(k)+': ');lbl.style.color='var(--text-secondary)';
+        row.appendChild(lbl);
+        var val=el('span','','M = '+fmt(s.mean));val.style.color='var(--text-primary)';
+        row.appendChild(val);
+
+        if(w1s.n>0){
+          var diff=s.mean-w1s.mean;
+          var diffSpan=el('span','','  ('+(diff>=0?'+':'')+fmt(diff)+')');
+          diffSpan.style.color=diff>0?'var(--error)':diff<0?'var(--success)':'var(--text-muted)';
+          diffSpan.style.fontSize='10px';
+          row.appendChild(diffSpan);
+        }
+        scaleDiv.appendChild(row);
+      });
+      tpanel.appendChild(scaleDiv);
+    }
+
+    grid.appendChild(tpanel);
+  });
+  panel.appendChild(grid);
+
+  // Diverging bar chart: change scores
+  var divCard=el('div','card');
+  divCard.appendChild(el('div','card-title','Mean Change Scores (W2 - W1) by Transition Group'));
+
+  var changeVars=['DASS_Total','DASS_Depression','DASS_Anxiety','DASS_Stress','ECR_AI_Anxiety','ECR_AI_Avoidance','ANTRO_Mean'];
+  var availChangeVars=changeVars.filter(function(k){return DATA.w1[k]&&DATA.w2[k];});
+
+  if(availChangeVars.length>0){
+    var maxAbsChange=0;
+    var changeData={};
+    tGroups.forEach(function(tg){
+      changeData[tg.value]={};
+      var mask2=new Uint8Array(DATA.meta.w2_n);
+      for(var i2=0;i2<DATA.meta.w2_n;i2++)mask2[i2]=DATA.matched.transition[i2]===tg.value?1:0;
+      availChangeVars.forEach(function(k){
+        var paired2=getPairedVecs(k,mask2);
+        if(!paired2||paired2.w1.length<2){changeData[tg.value][k]={mean:0,n:0};return;}
+        var diffs2=[];for(var i3=0;i3<paired2.w1.length;i3++)diffs2.push(paired2.w2[i3]-paired2.w1[i3]);
+        var s2=descStats(diffs2);
+        changeData[tg.value][k]={mean:s2.mean,n:s2.n};
+        if(Math.abs(s2.mean)>maxAbsChange)maxAbsChange=Math.abs(s2.mean);
+      });
+    });
+    if(maxAbsChange===0)maxAbsChange=1;
+
+    availChangeVars.forEach(function(k){
+      var secHdr=el('div','',getVarLabel(k));
+      secHdr.style.fontSize='11px';secHdr.style.fontWeight='600';secHdr.style.color='var(--text-secondary)';secHdr.style.marginTop='10px';secHdr.style.marginBottom='4px';
+      divCard.appendChild(secHdr);
+
+      tGroups.forEach(function(tg){
+        var cd=changeData[tg.value][k];
+        if(!cd||cd.n===0)return;
+        var row=el('div','div-bar-row');
+        var lbl=el('div','div-bar-label',tg.label.split(' ')[0]);
+        lbl.style.color=tg.color;
+        row.appendChild(lbl);
+
+        var negDiv=el('div','div-bar-neg');
+        var posDiv=el('div','div-bar-pos');
+        var center=el('div','div-bar-center');
+
+        if(cd.mean<0){
+          var seg=el('div','div-bar-seg');
+          seg.style.background='linear-gradient(90deg, '+darkenColor(tg.color)+', '+tg.color+')';
+          seg.style.width=(Math.abs(cd.mean)/maxAbsChange*100)+'%';
+          negDiv.appendChild(seg);
+        } else {
+          var seg2=el('div','div-bar-seg');
+          seg2.style.background='linear-gradient(90deg, '+tg.color+', '+darkenColor(tg.color)+')';
+          seg2.style.width=(Math.abs(cd.mean)/maxAbsChange*100)+'%';
+          posDiv.appendChild(seg2);
+        }
+
+        row.appendChild(negDiv);row.appendChild(center);row.appendChild(posDiv);
+        row.appendChild(el('div','div-bar-val',(cd.mean>=0?'+':'')+fmt(cd.mean)));
+        divCard.appendChild(row);
+      });
+    });
+  }
+  panel.appendChild(divCard);
+}
+
+/* ============================================================
+   TAB 6: WAR CONTEXT
+   ============================================================ */
+function buildWarTab(pane){
+  pane.style.flexDirection='column';
+
+  var hbar=el('div','group-bar');
+  hbar.appendChild(el('label','','War Context (Wave 2)'));
+  var effN=el('span','eff-n','N = '+DATA.meta.w2_n);
+  hbar.appendChild(effN);
+  pane.appendChild(hbar);
+
+  var mainPanel=el('div','main-panel');
+  mainPanel.style.overflowY='auto';
+  pane.appendChild(mainPanel);
+
+  renderWarTab(mainPanel);
+}
+
+function renderWarTab(panel){
+  clearEl(panel);
+
+  // Find war variables
+  var warVars=[];
+  var allKeys=Object.keys(DATA.meta.vars);
+  for(var i=0;i<allKeys.length;i++){
+    var m=DATA.meta.vars[allKeys[i]];
+    if((m.construct==='war'||allKeys[i].toLowerCase().indexOf('war')>=0||allKeys[i].toLowerCase().indexOf('duty')>=0||allKeys[i].toLowerCase().indexOf('missile')>=0)&&m.waves&&m.waves.indexOf(2)>=0){
+      warVars.push(allKeys[i]);
+    }
+  }
+
+  if(warVars.length===0){
+    panel.appendChild(el('div','card','No war context variables found in the data.'));
+    return;
+  }
+
+  // Render each war variable
+  var grid=el('div','war-grid');
+
+  warVars.forEach(function(key){
+    var card=el('div','card');
+    var meta=getVarMeta(key);
+    card.appendChild(el('div','card-title',meta.label||key));
+
+    var vec=getVecRaw(2,key,null);
+    var counts={},total=0;
+    for(var i=0;i<vec.length;i++){
+      var v=vec[i];if(v===null||v===undefined)continue;
+      counts[v]=(counts[v]||0)+1;total++;
+    }
+
+    if(total===0){
+      card.appendChild(el('div','placeholder','No data'));
+      grid.appendChild(card);
+      return;
+    }
+
+    var sorted=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
+    var maxC=counts[sorted[0]]||1;
+    var labels=meta.labels||{};
+
+    var area=el('div','chart-area');
+    sorted.forEach(function(k,idx){
+      var row=el('div','bar-row');
+      var lbl=labels[k]||k;
+      row.appendChild(el('div','bar-label',String(lbl)));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill '+FILL_CLASSES[idx%FILL_CLASSES.length]);
+      fill.style.width=(counts[k]/maxC*100)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val',counts[k]+' ('+fmt(counts[k]/total*100,1)+'%)'));
+      area.appendChild(row);
+    });
+    card.appendChild(area);
+
+    // N annotation
+    var nNote=el('div','');nNote.style.fontSize='10px';nNote.style.color='var(--text-muted)';nNote.style.marginTop='6px';
+    nNote.textContent='N = '+total;
+    card.appendChild(nNote);
+
+    grid.appendChild(card);
+  });
+
+  panel.appendChild(grid);
+
+  // War distress by transition group
+  var distressKey=null;
+  for(var i=0;i<warVars.length;i++){
+    if(warVars[i].toLowerCase().indexOf('distress')>=0){distressKey=warVars[i];break;}
+  }
+
+  if(distressKey){
+    var dCard=el('div','card');
+    dCard.appendChild(el('div','card-title','War Distress by Transition Group'));
+
+    var tGroups=[
+      {value:0,label:'Never',color:'#8b98a5'},
+      {value:1,label:'Adopter',color:'#6dd8a0'},
+      {value:2,label:'Continuer',color:'#5ba8e0'},
+      {value:3,label:'Discontinuer',color:'#e09090'}
+    ];
+
+    var stats=[];
+    tGroups.forEach(function(tg){
+      var mask=new Uint8Array(DATA.meta.w2_n);
+      for(var i=0;i<DATA.meta.w2_n;i++)mask[i]=DATA.matched.transition[i]===tg.value?1:0;
+      var vec=getVec(2,distressKey,mask);
+      var s=descStats(vec);
+      s.label=tg.label;s.color=tg.color;
+      stats.push(s);
+    });
+
+    var maxM=0;
+    stats.forEach(function(s){if(s.n>0&&s.mean+s.sd>maxM)maxM=s.mean+s.sd;});
+    if(maxM===0)maxM=1;
+
+    var area2=el('div','chart-area');
+    stats.forEach(function(s){
+      if(s.n===0)return;
+      var row=el('div','bar-row');
+      row.appendChild(el('div','bar-label',s.label));
+      var track=el('div','bar-track');
+      var fill=el('div','bar-fill');
+      fill.style.background='linear-gradient(90deg, '+darkenColor(s.color)+', '+s.color+')';
+      fill.style.width=(s.mean/maxM*100)+'%';
+      track.appendChild(fill);row.appendChild(track);
+      row.appendChild(el('div','bar-val','M='+fmt(s.mean)+' (N='+s.n+')'));
+      area2.appendChild(row);
+    });
+    dCard.appendChild(area2);
+
+    // Stats table
+    var tbl=el('table','stats-table');
+    var thead=el('thead','');
+    var thr=el('tr','');
+    ['Group','N','Mean','SD'].forEach(function(h){thr.appendChild(el('th','',h));});
+    thead.appendChild(thr);tbl.appendChild(thead);
+    var tbody=el('tbody','');
+    stats.forEach(function(s){
+      if(s.n===0)return;
+      var tr=el('tr','');
+      tr.appendChild(el('td','',s.label));
+      tr.appendChild(el('td','',String(s.n)));
+      tr.appendChild(el('td','',fmt(s.mean)));
+      tr.appendChild(el('td','',fmt(s.sd)));
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);dCard.appendChild(tbl);
+    panel.appendChild(dCard);
+  }
+
+  // Summary stats card
+  var sumCard=el('div','card');
+  sumCard.appendChild(el('div','card-title','War Context Summary'));
+
+  // Compute key stats
+  var harmKey=warVars.find(function(k){return k.toLowerCase().indexOf('harm')>=0;});
+  var houseKey=warVars.find(function(k){return k.toLowerCase().indexOf('house')>=0||k.toLowerCase().indexOf('evacu')>=0;});
+  var missileKey=warVars.find(function(k){return k.toLowerCase().indexOf('missile')>=0;});
+
+  var summaryItems=[];
+  if(harmKey){
+    var hVec=getVecRaw(2,harmKey,null);
+    var harmed=0;hVec.forEach(function(v){if(v!==null&&v!==0&&v!=='0')harmed++;});
+    summaryItems.push({label:'Reported any war harm',value:hVec.length>0?harmed+'/'+hVec.length+' ('+fmt(harmed/hVec.length*100,1)+'%)':'N/A'});
+  }
+  if(houseKey){
+    var eVec=getVecRaw(2,houseKey,null);
+    var evac=0;eVec.forEach(function(v){if(v===1||v==='1')evac++;});
+    summaryItems.push({label:'Evacuated from home',value:eVec.length>0?evac+'/'+eVec.length+' ('+fmt(evac/eVec.length*100,1)+'%)':'N/A'});
+  }
+  if(missileKey){
+    var mVec=getVecRaw(2,missileKey,null);
+    var exposed=0;mVec.forEach(function(v){if(v===1||v==='1')exposed++;});
+    summaryItems.push({label:'Missile exposure',value:mVec.length>0?exposed+'/'+mVec.length+' ('+fmt(exposed/mVec.length*100,1)+'%)':'N/A'});
+  }
+  if(distressKey){
+    var dVec=getVec(2,distressKey,null);
+    var dStats=descStats(dVec);
+    summaryItems.push({label:'Mean war distress',value:fmt(dStats.mean)+' (SD = '+fmt(dStats.sd)+')'});
+  }
+
+  if(summaryItems.length>0){
+    var sTbl=el('table','stats-table');
+    var sTb=el('tbody','');
+    summaryItems.forEach(function(item){
+      var tr=el('tr','');
+      tr.appendChild(el('td','',item.label));
+      tr.appendChild(el('td','',item.value));
+      sTb.appendChild(tr);
+    });
+    sTbl.appendChild(sTb);sumCard.appendChild(sTbl);
+  } else {
+    sumCard.appendChild(el('div','','Compute summary statistics from available war variables.'));
+  }
+  panel.appendChild(sumCard);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initAuth);
+} else {
+  initAuth();
+}
+
+})();
+</script>
+</body>
+</html>
