@@ -135,7 +135,7 @@ background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
 .mode-sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
 
 /* Dropdowns & IV chips for analysis */
-.analysis-config{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);}
+.analysis-config{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;max-height:40vh;overflow-y:auto;}
 .config-group{display:flex;flex-direction:column;gap:4px;}
 .config-group label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .config-group select{font-size:12px;min-width:160px;}
@@ -725,6 +725,16 @@ function buildExplorerTab(pane,wave){
   filterPresets.forEach(function(fp){
     var btn=el('button','preset-btn',fp.l);
     if((st.filterPreset||'all')===fp.k)btn.classList.add('active');
+    // Tooltip for Exclude Discontinuers (fix #11)
+    if(fp.k==='nodisc'){
+      btn.title='Discontinuers: participants who used AI for mental health at W1 (Nov 2025) but not at W2 (Mar 2026).';
+    } else if(fp.k==='aimh'){
+      btn.title='AI-MH Only: participants who reported using AI for mental-health support in this wave.';
+    } else if(fp.k==='noaimh'){
+      btn.title='Non AI-MH: participants who did not use AI for mental health in this wave.';
+    } else if(fp.k==='all'){
+      btn.title='No filter — all participants in this wave.';
+    }
     btn.addEventListener('click',function(){
       st.filterPreset=fp.k;
       fbar.querySelectorAll('.preset-btn').forEach(function(b){b.classList.remove('active');});
@@ -733,7 +743,7 @@ function buildExplorerTab(pane,wave){
     });
     fbar.appendChild(btn);
   });
-  // Effective N badge
+  // Effective N badge (shows Total + Effective after filter)
   var effN=el('span','badge badge-accent','');effN.style.marginLeft='auto';
   fbar.appendChild(effN);
 
@@ -898,7 +908,14 @@ function renderExplorer(panel,wave,st){
   var mask=buildMask(wave,filters);
   // Update effective N
   var effCount=0;for(var i=0;i<mask.length;i++)if(mask[i])effCount++;
-  if(st._effN)st._effN.textContent='N = '+effCount;
+  var totalWave=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
+  if(st._effN){
+    if(effCount===totalWave){
+      st._effN.textContent='N = '+totalWave;
+    } else {
+      st._effN.textContent='N = '+totalWave+' (effective: '+effCount+')';
+    }
+  }
 
   if(!st.selected){
     renderOverview(panel,wave,st,mask);
@@ -2251,7 +2268,15 @@ function buildAdvancedTab(pane){
   });
   wSel.value=st.waveMode;
   wSel.style.fontSize='11px';
-  wSel.addEventListener('change',function(){st.waveMode=wSel.value;renderAdvConfig(configArea,st);renderAdvResults(resultsPanel,st);});
+  wSel.addEventListener('change',function(){
+    // Reset variable selections when wave mode changes (keys have different format in cross mode)
+    st.waveMode=wSel.value;
+    st.selVars=[];
+    st.dv='';st.ivs=[];
+    st.medX='';st.medM='';st.medY='';
+    st.modDV='';st.modIV='';st.modMod='';
+    renderAdvConfig(configArea,st);renderAdvResults(resultsPanel,st);
+  });
   mbar.appendChild(wSel);
 
   mbar.appendChild(el('div','mode-sep'));
@@ -2334,7 +2359,7 @@ function renderRQCards(area,st,mbar,wSel,fSel,configArea,resultsPanel){
      mode:'moderation',wave:'w1',filter:'aimh',modDV:'ECR_AI_Anxiety',modIV:'ANTRO_Mean',modMod:'DASS_Total'},
     {icon:'\uD83D\uDCCA',q:'How do key scales correlate?',desc:'Correlation matrix: DASS, ECR-AI, Anthropomorphism, GAAIS',accent:'var(--purple)',
      mode:'correlation',wave:'w1',filter:'all',selVars:['DASS_Total','ECR_AI_Anxiety','ECR_AI_Avoidance','ANTRO_Mean','GAAIS_Total']},
-    {icon:'\uD83D\uDD04',q:'What changed between waves?',desc:'Cross-wave regression: W1 AI-MH + W1 DASS predicting W2 DASS',accent:'var(--success)',
+    {icon:'\uD83D\uDD04',q:'What changed between waves?',desc:'Cross-wave regression: W1 DASS (baseline) predicting W2 DASS, with W1 AI-MH as predictor.',accent:'var(--success)',
      mode:'regression',wave:'cross',filter:'all',dv:'DASS_Total',ivs:['AI_MH','DASS_Total']},
     {icon:'\uD83C\uDD95',q:'Who becomes an AI-MH adopter?',desc:'W2 logistic regression: What predicts new AI-MH use?',accent:'var(--caution)',
      mode:'regression',wave:'w2',filter:'all',dv:'AI_MH',ivs:['DASS_Total','ANTRO_Mean','ECR_AI_Anxiety','Age']},
@@ -2433,32 +2458,83 @@ function renderAdvConfig(area,st){
   else wBanner.textContent='Cross-wave \u2014 Predictors from W1 (N='+DATA.meta.w1_n+'), Outcomes from W2 (N='+DATA.meta.w2_n+')';
   area.appendChild(wBanner);
 
-  // Method explanation box — explains WHAT the analysis does
-  var methodBox=el('div','');
-  methodBox.style.cssText='background:rgba(184,160,224,.06);border:1px solid rgba(184,160,224,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-primary);line-height:1.5;';
-  var methodTitle=el('div','');
-  methodTitle.style.cssText='font-weight:600;color:var(--purple);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;';
-  var methodBody=el('div','');
-  methodBody.style.cssText='color:var(--text-secondary);';
-  if(st.mode==='correlation'){
-    methodTitle.textContent='\uD83D\uDCCA Pearson Correlation \u2014 How variables co-vary';
-    methodBody.textContent='Select 2 or more continuous variables. The analysis computes the linear association between every pair. r ranges from \u22121 (perfect negative) to +1 (perfect positive); 0 means no linear relationship. A significant correlation (p<.05) means the pattern is unlikely due to chance. Correlation is NOT causation.';
-  } else if(st.mode==='regression'){
-    methodTitle.textContent='\uD83D\uDCC8 Regression \u2014 What predicts the outcome?';
-    methodBody.textContent='Select ONE outcome (DV) and one or more predictors (IVs). The analysis estimates how much each predictor uniquely contributes to the outcome, controlling for the others. If the DV is binary (0/1 \u2014 e.g., AI-MH yes/no), logistic regression runs automatically (reports Odds Ratios). If continuous, linear regression runs (reports beta coefficients and R\u00B2).';
-  } else if(st.mode==='mediation'){
-    methodTitle.textContent='\u26A1 Mediation (Sobel) \u2014 How does X affect Y?';
-    methodBody.textContent='Tests whether M (the mediator) explains the mechanism by which X (predictor) affects Y (outcome). The indirect path X\u2192M\u2192Y is tested for significance with the Sobel z-test. If significant, it suggests X influences Y partly or fully BECAUSE X changes M, which in turn changes Y. Example: Does distress (M) explain why attachment anxiety (X) leads to AI-MH use (Y)?';
-  } else if(st.mode==='moderation'){
-    methodTitle.textContent='\u26A0 Moderation \u2014 Does the effect of X on Y depend on Mod?';
-    methodBody.textContent='Tests whether the relationship between IV (X) and DV (Y) changes across levels of a Moderator. The analysis adds an X\u00D7Mod interaction term. Simple slopes are computed at Low (\u22121SD), Mean, and High (+1SD) moderator values. Example: Does anthropomorphism predict AI-attachment anxiety differently at low vs. high distress? A significant interaction means YES.';
-  } else {
-    methodTitle.textContent='Select an analysis mode above';
-    methodBody.textContent='Choose Correlation, Regression, Mediation, or Moderation. Each one answers a different research question about the data.';
+  // Combined collapsible "About this analysis" panel (method + how to read)
+  // Remember state per mode via localStorage
+  var storageKey='help_expanded_'+(st.mode||'default');
+  var wasExpanded=true; // default expanded on first visit
+  try{var v=localStorage.getItem(storageKey);if(v!==null)wasExpanded=(v==='true');}catch(e){}
+
+  var helpWrap=el('div','');
+  helpWrap.style.cssText='background:rgba(184,160,224,.06);border:1px solid rgba(184,160,224,.2);border-radius:8px;margin-bottom:12px;overflow:hidden;';
+
+  var helpHdr=el('button','');
+  helpHdr.style.cssText='width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:transparent;color:var(--purple);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;cursor:pointer;border:none;';
+  var helpHdrText=el('span','','');
+  helpHdrText.textContent='\uD83D\uDCD6 About this analysis';
+  helpHdr.appendChild(helpHdrText);
+  var helpHdrArrow=el('span','');
+  helpHdrArrow.style.cssText='font-size:10px;transition:transform .15s;color:var(--text-muted);';
+  helpHdrArrow.textContent=wasExpanded?'\u25BC':'\u25B6';
+  helpHdr.appendChild(helpHdrArrow);
+
+  var helpBody=el('div','');
+  helpBody.style.cssText='padding:0 14px 12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.5;display:'+(wasExpanded?'block':'none')+';';
+
+  function buildHelpContent(){
+    clearEl(helpBody);
+    var methodTitle=el('div','');
+    methodTitle.style.cssText='font-weight:600;color:var(--purple);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;';
+    var methodBody=el('div','');
+    methodBody.style.cssText='color:var(--text-secondary);margin-bottom:10px;';
+    if(st.mode==='correlation'){
+      methodTitle.textContent='\uD83D\uDCCA Pearson Correlation \u2014 How variables co-vary';
+      methodBody.textContent='Select 2 or more continuous variables. The analysis computes the linear association between every pair. r ranges from \u22121 (perfect negative) to +1 (perfect positive); 0 means no linear relationship. A significant correlation (p<.05) means the pattern is unlikely due to chance. Correlation is NOT causation.';
+    } else if(st.mode==='regression'){
+      methodTitle.textContent='\uD83D\uDCC8 Regression \u2014 What predicts the outcome?';
+      methodBody.textContent='Select ONE outcome (DV) and one or more predictors (IVs). The analysis estimates how much each predictor uniquely contributes to the outcome, controlling for the others. If the DV is binary (0/1 \u2014 e.g., AI-MH yes/no), logistic regression runs automatically (reports Odds Ratios). If continuous, linear regression runs (reports beta coefficients and R\u00B2).';
+    } else if(st.mode==='mediation'){
+      methodTitle.textContent='\u26A1 Mediation (Sobel) \u2014 How does X affect Y?';
+      methodBody.textContent='Tests whether M (the mediator) explains the mechanism by which X (predictor) affects Y (outcome). The indirect path X\u2192M\u2192Y is tested for significance with the Sobel z-test. If significant, it suggests X influences Y partly or fully BECAUSE X changes M, which in turn changes Y. Example: Does distress (M) explain why attachment anxiety (X) leads to AI-MH use (Y)?';
+    } else if(st.mode==='moderation'){
+      methodTitle.textContent='\u26A0 Moderation \u2014 Does the effect of X on Y depend on Mod?';
+      methodBody.textContent='Tests whether the relationship between IV (X) and DV (Y) changes across levels of a Moderator. The analysis adds an X\u00D7Mod interaction term. Simple slopes are computed at Low (\u22121SD), Mean, and High (+1SD) moderator values. Example: Does anthropomorphism predict AI-attachment anxiety differently at low vs. high distress? A significant interaction means YES.';
+    } else {
+      methodTitle.textContent='Select an analysis mode above';
+      methodBody.textContent='Choose Correlation, Regression, Mediation, or Moderation. Each one answers a different research question about the data.';
+    }
+    helpBody.appendChild(methodTitle);
+    helpBody.appendChild(methodBody);
+
+    // "How to read" section
+    var readTitle=el('div','');
+    readTitle.style.cssText='font-weight:600;color:var(--success);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-top:6px;';
+    readTitle.textContent='\uD83D\uDD0D How to read the results';
+    var readBody=el('div','');
+    readBody.style.color='var(--text-secondary)';
+    if(st.mode==='correlation'){
+      readBody.textContent='The heat map shows r values (colored: green=positive, red=negative, darker=stronger). Values close to \u00B11 = strong; close to 0 = weak. The table below lists each pair with r, p-value, and N. Look for p<.05 (significant) and Cohen\'s r conventions: |r|\u2265.10=small, \u2265.30=medium, \u2265.50=large.';
+    } else if(st.mode==='regression'){
+      readBody.textContent='The forest plot shows each predictor\'s coefficient (dot) and 95% CI (line). If the line doesn\'t cross zero (linear) or 1 (logistic), the effect is significant. The coefficient table shows exact values: \u03B2 (linear) or OR (logistic), SE, p. Overall model fit: R\u00B2 (linear) or pseudo-R\u00B2 (logistic). Higher = more variance explained.';
+    } else if(st.mode==='mediation'){
+      readBody.textContent='The path diagram shows all 4 paths: a (X\u2192M), b (M\u2192Y), c (total X\u2192Y), c\u2032 (direct X\u2192Y after controlling M). The indirect effect (a\u00D7b) is what mediation tests. Sobel |z|\u22651.96, p<.05 = significant mediation. Full mediation: c\u2032 becomes non-significant. Partial: c\u2032 reduces but stays significant.';
+    } else if(st.mode==='moderation'){
+      readBody.textContent='Look at the interaction coefficient (X\u00D7Mod) row: if p<.05, moderation is significant. The simple slopes table shows how the IV\u2192DV relationship differs at Low (\u22121SD), Mean, and High (+1SD) moderator values. The interaction plot visualizes how the two (or three) slopes diverge.';
+    }
+    helpBody.appendChild(readTitle);
+    helpBody.appendChild(readBody);
   }
-  methodBox.appendChild(methodTitle);
-  methodBox.appendChild(methodBody);
-  area.appendChild(methodBox);
+  buildHelpContent();
+
+  helpHdr.addEventListener('click',function(){
+    var nowOpen=helpBody.style.display==='none';
+    helpBody.style.display=nowOpen?'block':'none';
+    helpHdrArrow.textContent=nowOpen?'\u25BC':'\u25B6';
+    try{localStorage.setItem(storageKey,nowOpen?'true':'false');}catch(e){}
+  });
+
+  helpWrap.appendChild(helpHdr);
+  helpWrap.appendChild(helpBody);
+  area.appendChild(helpWrap);
 
   // Helper to build explanation tooltip under a label
   function hint(text){
@@ -2471,19 +2547,46 @@ function renderAdvConfig(area,st){
   if(st.mode==='correlation'){
     var g=el('div','config-group');
     g.appendChild(el('label','','Select 2+ continuous variables'));
-    g.appendChild(hint('Click any chip to add/remove from the correlation matrix. Each pair will be tested with Pearson r.'));
+    if(st.waveMode==='cross'){
+      g.appendChild(hint('Cross-wave correlation: select variables from either wave. Each variable is labeled [W1] or [W2]. Pairs are computed across matched participants.'));
+    } else {
+      g.appendChild(hint('Click any chip to add/remove from the correlation matrix. Each pair will be tested with Pearson r.'));
+    }
     var chips=el('div','iv-chips');
-    contVars.forEach(function(k){
-      var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
-      chip.title=k;
-      chip.addEventListener('click',function(){
-        var idx=st.selVars.indexOf(k);
-        if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(k);
-        chip.classList.toggle('selected');
-        renderAdvResults(document.getElementById('adv-results'),st);
+    if(st.waveMode==='cross'){
+      // Show variables from BOTH waves with prefixed keys and [W1]/[W2] badges
+      function addPool(waveNum){
+        var pool=getContinuousVars(waveNum);
+        pool.forEach(function(k){
+          var prefKey='w'+waveNum+':'+k;
+          var lbl=getVarLabel(k)+' ['+(waveNum===1?'W1':'W2')+']';
+          var chip=el('button','iv-chip'+(st.selVars.indexOf(prefKey)>=0?' selected':''),lbl);
+          chip.title=prefKey;
+          chip.style.borderLeft='3px solid '+(waveNum===1?'#5ba8e0':'#e8a060');
+          chip.addEventListener('click',function(){
+            var idx=st.selVars.indexOf(prefKey);
+            if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(prefKey);
+            chip.classList.toggle('selected');
+            renderAdvResults(document.getElementById('adv-results'),st);
+          });
+          chips.appendChild(chip);
+        });
+      }
+      addPool(1);
+      addPool(2);
+    } else {
+      contVars.forEach(function(k){
+        var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
+        chip.title=k;
+        chip.addEventListener('click',function(){
+          var idx=st.selVars.indexOf(k);
+          if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(k);
+          chip.classList.toggle('selected');
+          renderAdvResults(document.getElementById('adv-results'),st);
+        });
+        chips.appendChild(chip);
       });
-      chips.appendChild(chip);
-    });
+    }
     g.appendChild(chips);area.appendChild(g);
 
   } else if(st.mode==='regression'){
@@ -2604,8 +2707,7 @@ function renderAdvResults(panel,st){
   // Hide research question cards when showing results
   var rqContainer=document.getElementById('adv-rq-area');
   if(rqContainer)rqContainer.style.display='none';
-  // Add "how to read" help banner
-  if(st.mode)panel.appendChild(buildResultsHelpBanner(st.mode));
+  // Note: method + how-to-read panel is now in the config area (collapsible)
   if(st.mode==='correlation')renderCorrelation(panel,st);
   else if(st.mode==='regression')renderRegression(panel,st);
   else if(st.mode==='mediation')renderMediation(panel,st);
@@ -2619,33 +2721,74 @@ function renderCorrelation(panel,st){
   }
   var wave=getAdvWave(st);
   var filters=getAdvFilter(st);
+  var isCrossCorr=st.waveMode==='cross';
   var mask=buildMask(wave,filters);
 
-  // Get aligned data
   var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
   var src=wave===1?DATA.w1:DATA.w2;
   var vars=st.selVars;
-  var arrs=vars.map(function(v){return src[v];});
 
-  // Compute pairwise correlations
+  // In cross-wave mode, each selected variable has an explicit wave assignment
+  // Variable keys may be prefixed: "w1:VarName" or "w2:VarName"
+  // For non-cross mode, variables are all from the current wave
+  function splitKey(k){
+    if(isCrossCorr){
+      if(k.indexOf('w1:')===0)return{wave:1,key:k.substring(3)};
+      if(k.indexOf('w2:')===0)return{wave:2,key:k.substring(3)};
+      // Fallback: default to the variable's primary wave if unprefixed
+      var m=getVarMeta(k);
+      var wv=(m.waves&&m.waves[0])||1;
+      return{wave:wv,key:k};
+    }
+    return{wave:wave,key:k};
+  }
+  var varInfo=vars.map(splitKey);
+
+  // Compute pairwise correlations using correct wave source per variable
   var nv=vars.length;
-  var rMat=[],pMat=[];
-  for(var i=0;i<nv;i++){rMat[i]=[];pMat[i]=[];
+  var rMat=[],pMat=[],nMat=[];
+  for(var i=0;i<nv;i++){rMat[i]=[];pMat[i]=[];nMat[i]=[];
     for(var j=0;j<nv;j++){
-      if(i===j){rMat[i][j]=1;pMat[i][j]=0;continue;}
+      if(i===j){rMat[i][j]=1;pMat[i][j]=0;nMat[i][j]=0;continue;}
       var x=[],y=[];
-      for(var k=0;k<n;k++){
-        if(!mask[k])continue;
-        var a=arrs[i]?arrs[i][k]:null,b=arrs[j]?arrs[j][k]:null;
-        if(a!==null&&a!==undefined&&!isNaN(a)&&b!==null&&b!==undefined&&!isNaN(b)){x.push(a);y.push(b);}
+      var vi=varInfo[i],vj=varInfo[j];
+      if(isCrossCorr){
+        // Use matched.link to align participants across waves
+        var wi1=vi.wave===1?DATA.w1:DATA.w2;
+        var wj1=vj.wave===1?DATA.w1:DATA.w2;
+        var ai=wi1[vi.key],aj=wj1[vj.key];
+        for(var k=0;k<DATA.meta.w2_n;k++){
+          if(!mask[k])continue;
+          var w1i=DATA.matched.link[k];
+          if(w1i===null||w1i===undefined)continue;
+          var idxI=vi.wave===1?w1i:k;
+          var idxJ=vj.wave===1?w1i:k;
+          var a=ai?ai[idxI]:null,b=aj?aj[idxJ]:null;
+          if(a!==null&&a!==undefined&&!isNaN(a)&&b!==null&&b!==undefined&&!isNaN(b)){x.push(a);y.push(b);}
+        }
+      } else {
+        var ai=src[vi.key],aj=src[vj.key];
+        for(var k=0;k<n;k++){
+          if(!mask[k])continue;
+          var a=ai?ai[k]:null,b=aj?aj[k]:null;
+          if(a!==null&&a!==undefined&&!isNaN(a)&&b!==null&&b!==undefined&&!isNaN(b)){x.push(a);y.push(b);}
+        }
       }
       var pr=pearsonR(x,y);
-      rMat[i][j]=pr.r;pMat[i][j]=pr.p;
+      rMat[i][j]=pr.r;pMat[i][j]=pr.p;nMat[i][j]=x.length;
     }
   }
 
+  // Helper: nice label including [W1]/[W2] in cross mode
+  function vLabel(idx){
+    var vi=varInfo[idx];
+    var lbl=getVarLabel(vi.key);
+    if(isCrossCorr)lbl+=' ['+(vi.wave===1?'W1':'W2')+']';
+    return lbl;
+  }
+
   // "What you're testing" summary card
-  var varLabels=vars.map(function(v){return getVarLabel(v);});
+  var varLabels=[];for(var vli=0;vli<nv;vli++)varLabels.push(vLabel(vli));
   var testCard=el('div','');
   testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
   var testTitle=el('div','');
@@ -2661,7 +2804,7 @@ function renderCorrelation(panel,st){
   testCard.appendChild(testDetail);
   panel.appendChild(testCard);
 
-  // Heatmap
+  // Heatmap (use full labels; CSS handles overflow with ellipsis + hover title)
   var card=el('div','card');
   card.appendChild(el('div','card-title','Correlation Matrix'));
 
@@ -2670,8 +2813,12 @@ function renderCorrelation(panel,st){
   var thr=el('tr','');
   thr.appendChild(el('th','',''));
   for(var j=0;j<nv;j++){
-    var th=el('th','',getVarLabel(vars[j]).substring(0,12));
-    th.title=getVarLabel(vars[j]);
+    var th=el('th','',vLabel(j));
+    th.title=vLabel(j);
+    th.style.maxWidth='120px';
+    th.style.overflow='hidden';
+    th.style.textOverflow='ellipsis';
+    th.style.whiteSpace='nowrap';
     thr.appendChild(th);
   }
   thead.appendChild(thr);tbl.appendChild(thead);
@@ -2679,12 +2826,15 @@ function renderCorrelation(panel,st){
   var tbody=el('tbody','');
   for(var i=0;i<nv;i++){
     var tr=el('tr','');
-    var rlabel=el('th','',getVarLabel(vars[i]).substring(0,12));
-    rlabel.title=getVarLabel(vars[i]);rlabel.style.textAlign='right';
+    var rlabel=el('th','',vLabel(i));
+    rlabel.title=vLabel(i);rlabel.style.textAlign='right';
+    rlabel.style.maxWidth='140px';
+    rlabel.style.overflow='hidden';
+    rlabel.style.textOverflow='ellipsis';
+    rlabel.style.whiteSpace='nowrap';
     tr.appendChild(rlabel);
     for(var j=0;j<nv;j++){
       var td=el('td','',fmt(rMat[i][j])+sigStars(pMat[i][j]));
-      // Color by value
       var absR=Math.abs(rMat[i][j]);
       var alpha=Math.min(0.7,absR);
       if(i===j)td.style.background='rgba(91,168,224,0.1)';
@@ -2692,6 +2842,7 @@ function renderCorrelation(panel,st){
       else td.style.background='rgba(224,144,144,'+alpha+')';
       td.style.color=absR>0.3?'#fff':'var(--text-primary)';
       td.style.fontSize='11px';
+      td.title=vLabel(i)+' x '+vLabel(j)+': r='+fmt(rMat[i][j],3)+', p='+fmtP(pMat[i][j])+', N='+nMat[i][j];
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
@@ -2700,7 +2851,7 @@ function renderCorrelation(panel,st){
   card.appendChild(tbl);
   panel.appendChild(card);
 
-  // Detail table
+  // Detail table (full labels, title tooltip for long pairs)
   var dCard=el('div','card');
   dCard.appendChild(el('div','card-title','Pairwise Correlations'));
   var dtbl=el('table','stats-table');
@@ -2712,18 +2863,13 @@ function renderCorrelation(panel,st){
   for(var i=0;i<nv;i++){
     for(var j=i+1;j<nv;j++){
       var tr=el('tr','');
-      tr.appendChild(el('td','',getVarLabel(vars[i]).substring(0,15)+' x '+getVarLabel(vars[j]).substring(0,15)));
+      var pairText=vLabel(i)+' \u00D7 '+vLabel(j);
+      var pairCell=el('td','',pairText);pairCell.title=pairText;
+      tr.appendChild(pairCell);
       tr.appendChild(el('td','',fmt(rMat[i][j],3)));
       var ptd=el('td','',fmtP(pMat[i][j]));if(pMat[i][j]<.05)ptd.className='sig';
       tr.appendChild(ptd);
-      // Count N
-      var x2=[],y2=[];
-      for(var k=0;k<n;k++){
-        if(!mask[k])continue;
-        var a=arrs[i]?arrs[i][k]:null,b=arrs[j]?arrs[j][k]:null;
-        if(a!==null&&!isNaN(a)&&b!==null&&!isNaN(b)){x2.push(1);}
-      }
-      tr.appendChild(el('td','',String(x2.length)));
+      tr.appendChild(el('td','',String(nMat[i][j])));
       var stEl=el('td','',sigStars(pMat[i][j]));if(pMat[i][j]<.05)stEl.className='sig';
       tr.appendChild(stEl);
       dtb.appendChild(tr);
@@ -2733,23 +2879,15 @@ function renderCorrelation(panel,st){
   panel.appendChild(dCard);
 
   // Narrative interpretation for correlation
-  // Build pairs array for the narrative generator
   var corPairs = [];
   var corN = 0;
   for (var ci = 0; ci < nv; ci++) {
     for (var cj = ci + 1; cj < nv; cj++) {
-      // Count pairwise N
-      var cx = [], cy = [];
-      for (var ck = 0; ck < n; ck++) {
-        if (!mask[ck]) continue;
-        var ca = arrs[ci] ? arrs[ci][ck] : null, cb = arrs[cj] ? arrs[cj][ck] : null;
-        if (ca !== null && !isNaN(ca) && cb !== null && !isNaN(cb)) { cx.push(1); }
-      }
-      corPairs.push({ label1: getVarLabel(vars[ci]), label2: getVarLabel(vars[cj]), r: rMat[ci][cj], p: pMat[ci][cj] });
-      if (cx.length > corN) corN = cx.length;
+      corPairs.push({ label1: vLabel(ci), label2: vLabel(cj), r: rMat[ci][cj], p: pMat[ci][cj] });
+      if (nMat[ci][cj] > corN) corN = nMat[ci][cj];
     }
   }
-  var narrativeCard = generateNarrative('correlation', { pairs: corPairs, n: corN }, { vars: vars.map(function(v) { return getVarLabel(v); }) });
+  var narrativeCard = generateNarrative('correlation', { pairs: corPairs, n: corN }, { vars: varLabels });
   if (narrativeCard) {
     panel.appendChild(narrativeCard);
     addAIInterpretButton(narrativeCard, 'correlation');
@@ -2816,7 +2954,9 @@ function renderRegression(panel,st){
     return;
   }
 
-  var vnames=['(Intercept)'].concat(allVars.map(function(k){return getVarLabel(k);}));
+  // In cross-wave mode, label IVs as [W1] and DV as [W2] for clarity
+  function crossLabel(k,src){return getVarLabel(k)+(isCross?' ['+src+']':'');}
+  var vnames=['(Intercept)'].concat(allVars.map(function(k){return crossLabel(k,'W1');}));
   var result=dvIsBinary?logReg(y,X,vnames):olsReg(y,X,vnames);
   if(result.error){
     panel.appendChild(el('div','card','Model error: '+result.error));
@@ -2824,8 +2964,8 @@ function renderRegression(panel,st){
   }
 
   // "What you're testing" summary card
-  var dvL=getVarLabel(st.dv);
-  var ivLabels=st.ivs.map(function(k){return getVarLabel(k);});
+  var dvL=crossLabel(st.dv,'W2');
+  var ivLabels=st.ivs.map(function(k){return crossLabel(k,'W1');});
   var testCard=el('div','');
   testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
   var testTitle=el('div','');
@@ -2856,7 +2996,7 @@ function renderRegression(panel,st){
   }
   sumCard.appendChild(sumStats);
 
-  // Forest plot (skip intercept)
+  // Forest plot (skip intercept) — for both linear (B coefficients) and logistic (OR on log scale)
   if(!dvIsBinary){
     var maxAbs=0;
     for(var j=1;j<result.beta.length;j++){
@@ -2870,11 +3010,9 @@ function renderRegression(panel,st){
       var row=el('div','forest-row');
       row.appendChild(el('div','forest-label',result.vn[j]));
       var track=el('div','forest-track');
-      // Zero line at center
       var zl=el('div','forest-zero');
       zl.style.left='50%';
       track.appendChild(zl);
-      // CI bar
       var ciLo=result.ci_lo[j],ciHi=result.ci_hi[j];
       var leftPct=50+(ciLo/maxAbs)*50;
       var rightPct=50+(ciHi/maxAbs)*50;
@@ -2883,7 +3021,6 @@ function renderRegression(panel,st){
       var ci=el('div','forest-ci');
       ci.style.left=leftPct+'%';ci.style.width=Math.max(2,rightPct-leftPct)+'%';
       track.appendChild(ci);
-      // Point estimate
       var dotPct=50+(result.beta[j]/maxAbs)*50;
       dotPct=Math.max(2,Math.min(98,dotPct));
       var dot=el('div','forest-dot');
@@ -2895,9 +3032,70 @@ function renderRegression(panel,st){
       fArea.appendChild(row);
     }
     sumCard.appendChild(fArea);
+  } else {
+    // Logistic: OR forest plot on log scale centered at 1
+    var maxLog=0;
+    for(var j=1;j<result.beta.length;j++){
+      var lnOR=Math.abs(Math.log(result.or[j]));
+      var lnLo=Math.abs(Math.log(result.ci_lo[j]));
+      var lnHi=Math.abs(Math.log(result.ci_hi[j]));
+      maxLog=Math.max(maxLog,lnOR,lnLo,lnHi);
+    }
+    if(!isFinite(maxLog)||maxLog===0)maxLog=1;
+    var forestHdr=el('div','');
+    forestHdr.style.cssText='font-size:11px;color:var(--text-muted);margin-bottom:6px;';
+    forestHdr.textContent='Odds Ratios (log scale, centered at OR=1). If CI crosses 1, the predictor is not significant.';
+    sumCard.appendChild(forestHdr);
+    var fAreaLog=el('div','chart-area');
+    for(var j=1;j<result.beta.length;j++){
+      var row=el('div','forest-row');
+      row.appendChild(el('div','forest-label',result.vn[j]));
+      var track=el('div','forest-track');
+      var zl=el('div','forest-zero');
+      zl.style.left='50%';
+      track.appendChild(zl);
+      var lnLo=Math.log(result.ci_lo[j]),lnHi=Math.log(result.ci_hi[j]),lnOR=Math.log(result.or[j]);
+      var leftPct=50+(lnLo/maxLog)*50;
+      var rightPct=50+(lnHi/maxLog)*50;
+      leftPct=Math.max(0,Math.min(100,leftPct));
+      rightPct=Math.max(0,Math.min(100,rightPct));
+      var ci=el('div','forest-ci');
+      ci.style.left=leftPct+'%';ci.style.width=Math.max(2,rightPct-leftPct)+'%';
+      track.appendChild(ci);
+      var dotPct=50+(lnOR/maxLog)*50;
+      dotPct=Math.max(2,Math.min(98,dotPct));
+      var dot=el('div','forest-dot');
+      dot.style.left='calc('+dotPct+'% - 6px)';
+      if(result.p[j]<.05)dot.style.background='var(--caution)';
+      track.appendChild(dot);
+      row.appendChild(track);
+      row.appendChild(el('div','forest-val','OR='+fmt(result.or[j],2)+' '+sigStars(result.p[j])));
+      fAreaLog.appendChild(row);
+    }
+    sumCard.appendChild(fAreaLog);
   }
 
   panel.appendChild(sumCard);
+
+  // Precompute standardized beta for linear regression: beta_std = beta_raw * (SD_x / SD_y)
+  var stdBetas=null;
+  if(!dvIsBinary){
+    // SDs for y and each X column
+    var ySum=0,ySum2=0;for(var ri=0;ri<y.length;ri++){ySum+=y[ri];ySum2+=y[ri]*y[ri];}
+    var yMean=ySum/y.length;
+    var yVar=ySum2/y.length-yMean*yMean;
+    var ySD=y.length>1?Math.sqrt(yVar*y.length/(y.length-1)):0;
+    stdBetas=new Array(result.beta.length);
+    stdBetas[0]=null; // intercept
+    for(var j=1;j<result.beta.length;j++){
+      var xSum=0,xSum2=0;
+      for(var ri=0;ri<X.length;ri++){xSum+=X[ri][j];xSum2+=X[ri][j]*X[ri][j];}
+      var xMean=xSum/X.length;
+      var xVar=xSum2/X.length-xMean*xMean;
+      var xSD=X.length>1?Math.sqrt(xVar*X.length/(X.length-1)):0;
+      stdBetas[j]=(ySD>0)?result.beta[j]*(xSD/ySD):NaN;
+    }
+  }
 
   // Coefficient table
   var tCard=el('div','card');
@@ -2905,7 +3103,7 @@ function renderRegression(panel,st){
   var tbl=el('table','stats-table');
   var thead=el('thead','');
   var thr=el('tr','');
-  var hdrs=dvIsBinary?['Term','B','OR','SE','z','p','95% CI']:['Term','B','SE','t','p','95% CI'];
+  var hdrs=dvIsBinary?['Term','B','OR','SE','z','p','95% CI']:['Term','B','\u03B2 (std)','SE','t','p','95% CI'];
   hdrs.forEach(function(h){thr.appendChild(el('th','',h));});
   thead.appendChild(thr);tbl.appendChild(thead);
   var tbody=el('tbody','');
@@ -2913,7 +3111,11 @@ function renderRegression(panel,st){
     var tr=el('tr','');
     tr.appendChild(el('td','',result.vn[j]));
     tr.appendChild(el('td','',fmt(result.beta[j],3)));
-    if(dvIsBinary)tr.appendChild(el('td','',fmt(result.or[j],3)));
+    if(dvIsBinary){
+      tr.appendChild(el('td','',fmt(result.or[j],3)));
+    } else {
+      tr.appendChild(el('td','',j===0?'\u2014':fmt(stdBetas[j],3)));
+    }
     tr.appendChild(el('td','',fmt(result.se[j],3)));
     tr.appendChild(el('td','',fmt(dvIsBinary?result.z[j]:result.t[j],3)));
     var ptd=el('td','',fmtP(result.p[j])+' '+sigStars(result.p[j]));
@@ -2923,7 +3125,136 @@ function renderRegression(panel,st){
     tbody.appendChild(tr);
   }
   tbl.appendChild(tbody);tCard.appendChild(tbl);
+  if(!dvIsBinary){
+    var stdNote=el('div','');
+    stdNote.style.cssText='font-size:10px;color:var(--text-muted);margin-top:6px;';
+    stdNote.textContent='\u03B2 (std) = standardized beta = B \u00D7 (SD_x / SD_y). Useful for comparing effect sizes across predictors on different scales.';
+    tCard.appendChild(stdNote);
+  }
   panel.appendChild(tCard);
+
+  // For logistic: add predicted probability curve for the most significant continuous IV
+  if(dvIsBinary){
+    // Pick most-significant IV with a valid continuous range (skip intercept)
+    var bestIdx=-1,bestP=2;
+    for(var j=1;j<result.beta.length;j++){
+      // Only use if the raw data has at least some variance
+      var col=[];for(var ri=0;ri<X.length;ri++)col.push(X[ri][j]);
+      var mn=Math.min.apply(null,col),mx=Math.max.apply(null,col);
+      if(mx-mn<=0)continue;
+      // Skip binary 0/1 predictors for the curve
+      var uniqueVals={};for(var ri=0;ri<col.length;ri++)uniqueVals[col[ri]]=1;
+      if(Object.keys(uniqueVals).length<4)continue;
+      if(result.p[j]<bestP){bestP=result.p[j];bestIdx=j;}
+    }
+    if(bestIdx>0){
+      var ppCard=el('div','card');
+      var ivName=result.vn[bestIdx];
+      ppCard.appendChild(el('div','card-title','Predicted P('+getVarLabel(st.dv)+' = 1) as '+ivName+' varies'));
+      var ppNote=el('div','');
+      ppNote.style.cssText='font-size:11px;color:var(--text-muted);margin-bottom:8px;';
+      ppNote.textContent='Other predictors held at their sample means. Rug plot shows raw observations (top = '+getVarLabel(st.dv)+'=1, bottom = '+getVarLabel(st.dv)+'=0).';
+      ppCard.appendChild(ppNote);
+
+      var ppCanvas=document.createElement('canvas');
+      ppCanvas.width=640;ppCanvas.height=360;
+      ppCanvas.style.width='100%';ppCanvas.style.maxWidth='640px';
+      ppCanvas.style.background='var(--bg-input)';ppCanvas.style.borderRadius='var(--radius-sm)';
+      ppCard.appendChild(ppCanvas);
+
+      // Compute means for each column (for holding covariates constant)
+      var colMeans=[];
+      for(var jj=0;jj<result.beta.length;jj++){
+        var s=0;for(var ri=0;ri<X.length;ri++)s+=X[ri][jj];
+        colMeans.push(X.length>0?s/X.length:0);
+      }
+
+      // Get range for the selected IV
+      var ivCol=[];for(var ri=0;ri<X.length;ri++)ivCol.push(X[ri][bestIdx]);
+      var ivMin=Math.min.apply(null,ivCol),ivMax=Math.max.apply(null,ivCol);
+
+      function predP(ivVal){
+        var eta=0;
+        for(var jj=0;jj<result.beta.length;jj++){
+          var v=(jj===bestIdx)?ivVal:(jj===0?1:colMeans[jj]);
+          eta+=result.beta[jj]*v;
+        }
+        return 1/(1+Math.exp(-Math.max(-500,Math.min(500,eta))));
+      }
+
+      var ctxP=ppCanvas.getContext('2d');
+      var Wp=ppCanvas.width,Hp=ppCanvas.height;
+      var padLp=60,padRp=20,padTp=20,padBp=50;
+      var plotWp=Wp-padLp-padRp,plotHp=Hp-padTp-padBp;
+
+      function xpP(x){return padLp+(x-ivMin)/(ivMax-ivMin)*plotWp;}
+      function ypP(y){return padTp+plotHp-y*plotHp;}
+
+      ctxP.fillStyle='#0f1419';ctxP.fillRect(0,0,Wp,Hp);
+      // Grid
+      ctxP.strokeStyle='rgba(40,48,64,0.5)';
+      ctxP.fillStyle='#64748b';ctxP.font='10px system-ui,sans-serif';
+      ctxP.textAlign='right';ctxP.textBaseline='middle';
+      for(var gi=0;gi<=5;gi++){
+        var yVal=gi/5;
+        var py=ypP(yVal);
+        ctxP.beginPath();ctxP.moveTo(padLp,py);ctxP.lineTo(padLp+plotWp,py);ctxP.stroke();
+        ctxP.fillText(yVal.toFixed(2),padLp-6,py);
+      }
+      ctxP.textAlign='center';ctxP.textBaseline='top';
+      for(var xi=0;xi<=5;xi++){
+        var xVal=ivMin+(ivMax-ivMin)*xi/5;
+        var px=xpP(xVal);
+        ctxP.beginPath();ctxP.moveTo(px,padTp+plotHp);ctxP.lineTo(px,padTp+plotHp+4);ctxP.stroke();
+        ctxP.fillText(xVal.toFixed(1),px,padTp+plotHp+6);
+      }
+      // Axes
+      ctxP.strokeStyle='#283040';ctxP.lineWidth=1;
+      ctxP.beginPath();
+      ctxP.moveTo(padLp,padTp);ctxP.lineTo(padLp,padTp+plotHp);ctxP.lineTo(padLp+plotWp,padTp+plotHp);
+      ctxP.stroke();
+      // Axis labels
+      ctxP.fillStyle='#8b98a5';ctxP.font='11px system-ui,sans-serif';
+      ctxP.textAlign='center';ctxP.textBaseline='bottom';
+      ctxP.fillText(ivName,padLp+plotWp/2,Hp-4);
+      ctxP.save();ctxP.translate(14,padTp+plotHp/2);ctxP.rotate(-Math.PI/2);
+      ctxP.textAlign='center';ctxP.textBaseline='middle';
+      ctxP.fillText('Predicted P('+getVarLabel(st.dv)+'=1)',0,0);
+      ctxP.restore();
+      // Rug
+      ctxP.fillStyle='rgba(109,216,160,0.6)';
+      for(var ri=0;ri<X.length;ri++){
+        if(y[ri]===1){
+          var px=xpP(X[ri][bestIdx]);
+          ctxP.fillRect(px,padTp+4,1,6);
+        }
+      }
+      ctxP.fillStyle='rgba(224,144,144,0.6)';
+      for(var ri=0;ri<X.length;ri++){
+        if(y[ri]===0){
+          var px=xpP(X[ri][bestIdx]);
+          ctxP.fillRect(px,padTp+plotHp-10,1,6);
+        }
+      }
+      // Predicted probability curve
+      ctxP.strokeStyle='#5ba8e0';ctxP.lineWidth=2.5;
+      ctxP.beginPath();
+      var steps=80;
+      for(var si=0;si<=steps;si++){
+        var xv2=ivMin+(ivMax-ivMin)*si/steps;
+        var pv=predP(xv2);
+        var px=xpP(xv2),py=ypP(pv);
+        if(si===0)ctxP.moveTo(px,py);else ctxP.lineTo(px,py);
+      }
+      ctxP.stroke();
+      // 0.5 reference line
+      ctxP.strokeStyle='rgba(139,152,165,0.4)';ctxP.setLineDash([4,4]);
+      ctxP.beginPath();ctxP.moveTo(padLp,ypP(0.5));ctxP.lineTo(padLp+plotWp,ypP(0.5));ctxP.stroke();
+      ctxP.setLineDash([]);
+
+      panel.appendChild(ppCard);
+    }
+  }
 
   // Narrative interpretation
   var ivLabels = allVars.map(function(k) { return getVarLabel(k); });
@@ -2945,14 +3276,29 @@ function renderMediation(panel,st){
   var mask=buildMask(wave,filters);
   var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
   var src=wave===1?DATA.w1:DATA.w2;
+  var isCrossMed=st.waveMode==='cross';
 
-  var xArr=src[st.medX],mArr=src[st.medM],yArr=src[st.medY];
   var x=[],m=[],y=[];
-  for(var i=0;i<n;i++){
-    if(!mask[i])continue;
-    var xv=xArr?xArr[i]:null,mv=mArr?mArr[i]:null,yv=yArr?yArr[i]:null;
-    if(xv!==null&&!isNaN(xv)&&mv!==null&&!isNaN(mv)&&yv!==null&&!isNaN(yv)){
-      x.push(xv);m.push(mv);y.push(yv);
+  if(isCrossMed){
+    // Cross-wave: X from W1 (via matched.link), M from W1 (default, for temporal ordering), Y from W2
+    var xArr=DATA.w1[st.medX],mArr=DATA.w1[st.medM],yArr=DATA.w2[st.medY];
+    for(var i=0;i<DATA.meta.w2_n;i++){
+      if(!mask[i])continue;
+      var w1i=DATA.matched.link[i];
+      if(w1i===null||w1i===undefined)continue;
+      var xv=xArr?xArr[w1i]:null,mv=mArr?mArr[w1i]:null,yv=yArr?yArr[i]:null;
+      if(xv!==null&&xv!==undefined&&!isNaN(xv)&&mv!==null&&mv!==undefined&&!isNaN(mv)&&yv!==null&&yv!==undefined&&!isNaN(yv)){
+        x.push(xv);m.push(mv);y.push(yv);
+      }
+    }
+  } else {
+    var xArr=src[st.medX],mArr=src[st.medM],yArr=src[st.medY];
+    for(var i=0;i<n;i++){
+      if(!mask[i])continue;
+      var xv=xArr?xArr[i]:null,mv=mArr?mArr[i]:null,yv=yArr?yArr[i]:null;
+      if(xv!==null&&!isNaN(xv)&&mv!==null&&!isNaN(mv)&&yv!==null&&!isNaN(yv)){
+        x.push(xv);m.push(mv);y.push(yv);
+      }
     }
   }
 
@@ -2984,43 +3330,91 @@ function renderMediation(panel,st){
   testCard.appendChild(testDetail);
   panel.appendChild(testCard);
 
-  // Path diagram
+  // Path diagram — 4 paths: a, b, c (total), c' (direct)
   var card=el('div','card');
   var tit=el('div','card-title','Path Diagram');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
   card.appendChild(tit);
 
+  // Top row: X -> M -> Y with a and b paths
   var diagram=el('div','path-diagram');
 
-  // X node
   var xNode=el('div','path-node',getVarLabel(st.medX));
   diagram.appendChild(xNode);
 
-  // a arrow
   var aArrow=el('div','path-arrow');
   var aCoef=el('div','coef','a = '+fmt(result.a,3)+sigStars(result.p_a));
-  if(result.p_a<.05)aCoef.style.color='var(--caution)';
+  aCoef.style.color=result.p_a<.05?'var(--success)':'var(--text-muted)';
   aArrow.appendChild(aCoef);
   var aLine=el('div','line');aArrow.appendChild(aLine);
   diagram.appendChild(aArrow);
 
-  // M node
   var mNode=el('div','path-node',getVarLabel(st.medM));
   diagram.appendChild(mNode);
 
-  // b arrow
   var bArrow=el('div','path-arrow');
   var bCoef=el('div','coef','b = '+fmt(result.b,3)+sigStars(result.p_b));
-  if(result.p_b<.05)bCoef.style.color='var(--caution)';
+  bCoef.style.color=result.p_b<.05?'var(--success)':'var(--text-muted)';
   bArrow.appendChild(bCoef);
   var bLine=el('div','line');bArrow.appendChild(bLine);
   diagram.appendChild(bArrow);
 
-  // Y node
   var yNode=el('div','path-node',getVarLabel(st.medY));
   diagram.appendChild(yNode);
 
   card.appendChild(diagram);
+
+  // Bottom row: direct path X -> Y showing c (total) and c' (direct)
+  var bottomRow=el('div','');
+  bottomRow.style.cssText='display:flex;align-items:center;justify-content:center;gap:18px;padding:8px 0 12px 0;';
+  var xTag=el('div','');
+  xTag.style.cssText='font-size:11px;color:var(--text-secondary);min-width:80px;text-align:right;';
+  xTag.textContent=getVarLabel(st.medX);
+  bottomRow.appendChild(xTag);
+
+  var arrowWrap=el('div','');
+  arrowWrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;min-width:180px;';
+  var cLine=el('div','');
+  // Styled solid arrow for total (c)
+  cLine.style.cssText='position:relative;width:160px;height:2px;background:var(--accent);';
+  var cArrowHead=el('span','');
+  cArrowHead.style.cssText='position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:6px solid var(--accent);';
+  cLine.appendChild(cArrowHead);
+  var cLabel=el('div','');
+  cLabel.style.cssText='font-size:11px;font-weight:700;';
+  cLabel.textContent='c = '+fmt(result.c,3)+' (total)';
+  cLabel.style.color='var(--accent)';
+  arrowWrap.appendChild(cLabel);
+  arrowWrap.appendChild(cLine);
+
+  // Direct effect (c'), dashed beneath
+  var cpLine=el('div','');
+  cpLine.style.cssText='position:relative;width:160px;height:2px;background:repeating-linear-gradient(90deg,var(--orange) 0 6px,transparent 6px 12px);';
+  var cpArrowHead=el('span','');
+  cpArrowHead.style.cssText='position:absolute;right:-2px;top:-4px;border:5px solid transparent;border-left:6px solid var(--orange);';
+  cpLine.appendChild(cpArrowHead);
+  var cpLabel=el('div','');
+  cpLabel.style.cssText='font-size:11px;font-weight:700;color:var(--orange);';
+  cpLabel.textContent="c' = "+fmt(result.cp,3)+' (direct)';
+  arrowWrap.appendChild(cpLine);
+  arrowWrap.appendChild(cpLabel);
+  bottomRow.appendChild(arrowWrap);
+
+  var yTag=el('div','');
+  yTag.style.cssText='font-size:11px;color:var(--text-secondary);min-width:80px;text-align:left;';
+  yTag.textContent=getVarLabel(st.medY);
+  bottomRow.appendChild(yTag);
+
+  card.appendChild(bottomRow);
+
+  // Indirect effect summary below diagram
+  var indirect=el('div','');
+  indirect.style.cssText='text-align:center;padding:10px 12px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:12px;margin-bottom:10px;';
+  var indirectColor=result.sob_p<.05?'var(--success)':'var(--text-muted)';
+  indirect.style.color=indirectColor;
+  indirect.style.borderLeft='3px solid '+indirectColor;
+  indirect.textContent='Indirect effect (a\u00D7b) = '+fmt(result.ab,3)+', Sobel z = '+fmt(result.sob_z,3)+', p = '+fmtP(result.sob_p)+' '+sigStars(result.sob_p);
+  card.appendChild(indirect);
 
   // Results table
   var tbl=el('table','stats-table');
@@ -3076,14 +3470,29 @@ function renderModeration(panel,st){
   var mask=buildMask(wave,filters);
   var n=wave===1?DATA.meta.w1_n:DATA.meta.w2_n;
   var src=wave===1?DATA.w1:DATA.w2;
+  var isCrossMod=st.waveMode==='cross';
 
-  var dvArr=src[st.modDV],ivArr=src[st.modIV],modArr=src[st.modMod];
   var yv=[],xv=[],mv=[];
-  for(var i=0;i<n;i++){
-    if(!mask[i])continue;
-    var d=dvArr?dvArr[i]:null,x2=ivArr?ivArr[i]:null,m2=modArr?modArr[i]:null;
-    if(d!==null&&!isNaN(d)&&x2!==null&&!isNaN(x2)&&m2!==null&&!isNaN(m2)){
-      yv.push(d);xv.push(x2);mv.push(m2);
+  if(isCrossMod){
+    // Cross-wave: DV from W2, IV and Moderator from W1 (via matched.link)
+    var dvArr=DATA.w2[st.modDV],ivArr=DATA.w1[st.modIV],modArr=DATA.w1[st.modMod];
+    for(var i=0;i<DATA.meta.w2_n;i++){
+      if(!mask[i])continue;
+      var w1i=DATA.matched.link[i];
+      if(w1i===null||w1i===undefined)continue;
+      var d=dvArr?dvArr[i]:null,x2=ivArr?ivArr[w1i]:null,m2=modArr?modArr[w1i]:null;
+      if(d!==null&&d!==undefined&&!isNaN(d)&&x2!==null&&x2!==undefined&&!isNaN(x2)&&m2!==null&&m2!==undefined&&!isNaN(m2)){
+        yv.push(d);xv.push(x2);mv.push(m2);
+      }
+    }
+  } else {
+    var dvArr=src[st.modDV],ivArr=src[st.modIV],modArr=src[st.modMod];
+    for(var i=0;i<n;i++){
+      if(!mask[i])continue;
+      var d=dvArr?dvArr[i]:null,x2=ivArr?ivArr[i]:null,m2=modArr?modArr[i]:null;
+      if(d!==null&&!isNaN(d)&&x2!==null&&!isNaN(x2)&&m2!==null&&!isNaN(m2)){
+        yv.push(d);xv.push(x2);mv.push(m2);
+      }
     }
   }
 
@@ -3251,6 +3660,138 @@ function renderModeration(panel,st){
   slCard.appendChild(slopeNote);
 
   panel.appendChild(slCard);
+
+  // Interaction plot (Canvas) — predicted DV as IV varies at different moderator levels
+  var plotCard=el('div','card');
+  plotCard.appendChild(el('div','card-title','Interaction Plot'));
+  var subNote=el('div','');
+  subNote.style.cssText='font-size:11px;color:var(--text-muted);margin-bottom:8px;';
+  subNote.textContent='Predicted '+getVarLabel(st.modDV)+' as '+getVarLabel(st.modIV)+' varies, at '+(modIsBinary?getVarLabel(st.modMod)+'=0 vs '+getVarLabel(st.modMod)+'=1':'-1SD / Mean / +1SD levels of '+getVarLabel(st.modMod))+'. Raw observations shown as dots.';
+  plotCard.appendChild(subNote);
+
+  var canvas=document.createElement('canvas');
+  canvas.width=640;canvas.height=360;
+  canvas.style.width='100%';canvas.style.maxWidth='640px';canvas.style.background='var(--bg-input)';canvas.style.borderRadius='var(--radius-sm)';
+  plotCard.appendChild(canvas);
+
+  // Compute means/SDs for IV, Moderator, DV (used for un-centering)
+  var xMean=0,mMean=0;for(var ci=0;ci<xv.length;ci++){xMean+=xv[ci];mMean+=mv[ci];}
+  xMean/=xv.length;mMean/=mv.length;
+  var mSD=0;for(var ci=0;ci<mv.length;ci++)mSD+=(mv[ci]-mMean)*(mv[ci]-mMean);
+  mSD=Math.sqrt(mSD/(mv.length-1));
+  var xMin=Infinity,xMax=-Infinity,yMin=Infinity,yMax=-Infinity;
+  for(var ci=0;ci<xv.length;ci++){
+    if(xv[ci]<xMin)xMin=xv[ci];if(xv[ci]>xMax)xMax=xv[ci];
+    if(yv[ci]<yMin)yMin=yv[ci];if(yv[ci]>yMax)yMax=yv[ci];
+  }
+
+  // Line levels: binary moderator -> 0,1; continuous -> -1SD, Mean, +1SD
+  var modLevels;
+  if(modIsBinary){
+    modLevels=[{label:getVarLabel(st.modMod)+'=0',val:0,color:'#5ba8e0'},{label:getVarLabel(st.modMod)+'=1',val:1,color:'#e8a060'}];
+  } else {
+    modLevels=[
+      {label:'-1SD '+getVarLabel(st.modMod),val:mMean-mSD,color:'#5ba8e0'},
+      {label:'Mean '+getVarLabel(st.modMod),val:mMean,color:'#8b98a5'},
+      {label:'+1SD '+getVarLabel(st.modMod),val:mMean+mSD,color:'#e8a060'}
+    ];
+  }
+
+  // Predicted value at (x,m): Int + b_X*(x-xMean) + b_M*(m-mMean) + b_XM*(x-xMean)*(m-mMean)
+  var b=modRes.beta;
+  function predY(x,m){return b[0]+b[1]*(x-xMean)+b[2]*(m-mMean)+b[3]*(x-xMean)*(m-mMean);}
+
+  // Expand y range to include predicted lines
+  modLevels.forEach(function(lv){
+    var y1=predY(xMin,lv.val),y2=predY(xMax,lv.val);
+    if(y1<yMin)yMin=y1;if(y1>yMax)yMax=y1;
+    if(y2<yMin)yMin=y2;if(y2>yMax)yMax=y2;
+  });
+  // Padding
+  var yPad=(yMax-yMin)*0.08;if(yPad===0)yPad=1;
+  var xPad=(xMax-xMin)*0.02;if(xPad===0)xPad=0.5;
+  var plotXMin=xMin-xPad,plotXMax=xMax+xPad;
+  var plotYMin=yMin-yPad,plotYMax=yMax+yPad;
+
+  var ctx=canvas.getContext('2d');
+  var W=canvas.width,H=canvas.height;
+  var padL=60,padR=20,padT=20,padB=50;
+  var plotW=W-padL-padR,plotH=H-padT-padB;
+
+  function xp(x){return padL+(x-plotXMin)/(plotXMax-plotXMin)*plotW;}
+  function yp(y){return padT+plotH-(y-plotYMin)/(plotYMax-plotYMin)*plotH;}
+
+  // Clear
+  ctx.fillStyle='#0f1419';ctx.fillRect(0,0,W,H);
+
+  // Axes + grid
+  ctx.strokeStyle='#283040';ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+plotH);ctx.lineTo(padL+plotW,padT+plotH);
+  ctx.stroke();
+  // Grid lines (5 horizontal)
+  ctx.strokeStyle='rgba(40,48,64,0.5)';
+  ctx.fillStyle='#64748b';ctx.font='10px system-ui,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+  for(var gi=0;gi<=5;gi++){
+    var yVal=plotYMin+(plotYMax-plotYMin)*gi/5;
+    var py=yp(yVal);
+    ctx.beginPath();ctx.moveTo(padL,py);ctx.lineTo(padL+plotW,py);ctx.stroke();
+    ctx.fillText(yVal.toFixed(1),padL-6,py);
+  }
+  // X ticks (5)
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(var xi=0;xi<=5;xi++){
+    var xVal=plotXMin+(plotXMax-plotXMin)*xi/5;
+    var px=xp(xVal);
+    ctx.beginPath();ctx.moveTo(px,padT+plotH);ctx.lineTo(px,padT+plotH+4);ctx.stroke();
+    ctx.fillText(xVal.toFixed(1),px,padT+plotH+6);
+  }
+
+  // Axis labels
+  ctx.fillStyle='#8b98a5';ctx.font='11px system-ui,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(getVarLabel(st.modIV),padL+plotW/2,H-4);
+  ctx.save();ctx.translate(14,padT+plotH/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('Predicted '+getVarLabel(st.modDV),0,0);
+  ctx.restore();
+
+  // Scatter (raw data)
+  ctx.fillStyle='rgba(139,152,165,0.35)';
+  for(var si=0;si<xv.length;si++){
+    var px=xp(xv[si]),py=yp(yv[si]);
+    ctx.beginPath();ctx.arc(px,py,2.5,0,Math.PI*2);ctx.fill();
+  }
+
+  // Draw predicted lines
+  modLevels.forEach(function(lv){
+    ctx.strokeStyle=lv.color;
+    ctx.lineWidth=(lv.label.indexOf('Mean')===0?1.5:2.5);
+    if(lv.label.indexOf('Mean')===0)ctx.setLineDash([4,4]);else ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(xp(plotXMin),yp(predY(plotXMin,lv.val)));
+    ctx.lineTo(xp(plotXMax),yp(predY(plotXMax,lv.val)));
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // Legend
+  var legX=padL+plotW-160,legY=padT+10;
+  ctx.fillStyle='rgba(16,20,26,0.85)';
+  ctx.fillRect(legX-8,legY-6,160,modLevels.length*18+10);
+  ctx.strokeStyle='#283040';ctx.strokeRect(legX-8,legY-6,160,modLevels.length*18+10);
+  ctx.font='11px system-ui,sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  modLevels.forEach(function(lv,idx){
+    var ly=legY+idx*18+6;
+    ctx.strokeStyle=lv.color;ctx.lineWidth=2.5;
+    if(lv.label.indexOf('Mean')===0)ctx.setLineDash([4,4]);else ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(legX,ly);ctx.lineTo(legX+24,ly);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#e0e4e8';
+    ctx.fillText(lv.label,legX+30,ly);
+  });
+
+  panel.appendChild(plotCard);
 
   // Narrative interpretation
   var narrativeCard = generateNarrative('moderation', result, { dv: getVarLabel(st.modDV), iv: getVarLabel(st.modIV), mod: getVarLabel(st.modMod) });
