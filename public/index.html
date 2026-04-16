@@ -271,6 +271,39 @@ background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
 
 @media(max-width:1100px){.overview-cards{grid-template-columns:repeat(2,1fr);}.mini-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:700px){.overview-cards{grid-template-columns:1fr;}.mini-grid{grid-template-columns:1fr;}}
+
+/* Mobile (< 900px): stack layout, collapse sidebar */
+@media(max-width:900px){
+  .sidebar{width:100%;min-width:0;max-height:180px;overflow-y:auto;border-right:none;border-bottom:1px solid var(--border);}
+  .tab-pane.active{flex-direction:column;}
+  .top-bar{flex-wrap:wrap;padding:6px 10px;gap:4px;}
+  .tab-bar{order:3;flex-basis:100%;overflow-x:auto;}
+  .sample-badge{font-size:10px;gap:6px;flex-wrap:wrap;}
+  .main-panel{padding:10px;gap:10px;}
+  .card{padding:10px 12px;}
+  .card-title{font-size:12px;}
+  .analysis-config{max-height:45vh;padding:8px;gap:6px;}
+  .config-group select{min-width:120px;font-size:11px;}
+  .iv-chips{max-width:100%;}
+  .side-by-side{flex-direction:column;}
+  .rq-grid{grid-template-columns:1fr;padding:8px;}
+  .mode-bar{padding:6px 8px;gap:3px;}
+  .mode-btn{font-size:10px;padding:4px 8px;}
+  .step-bar{padding:6px 10px;overflow-x:auto;white-space:nowrap;}
+  .war-grid{grid-template-columns:1fr;}
+}
+
+/* Loading spinner */
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Accessibility: keyboard focus visible */
+button:focus-visible,input:focus-visible,select:focus-visible,.tab-btn:focus-visible,.var-chip:focus-visible,.iv-chip:focus-visible,.preset-btn:focus-visible,.mode-btn:focus-visible,.rq-card:focus-visible,.mini-card:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.rq-card,.mini-card,.glance-row{outline-offset:2px;}
+/* Visually-hidden helper for screen-reader-only labels */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+
+/* Slightly smoother transitions for chips / cards */
+.var-chip,.iv-chip,.preset-btn,.mode-btn,.rq-card,.mini-card,.glance-row{transition:all .2s ease;}
 </style>
 </head>
 <body>
@@ -281,13 +314,14 @@ const DATA = {"meta":{"w1_n":584,"w2_n":379,"generated":"2026-04-15","vars":{"Ag
 </script>
 
 <div id="auth-screen">
-<div class="auth-box">
+<div class="auth-box" role="dialog" aria-labelledby="auth-title" aria-describedby="auth-sub">
 <div class="auth-badge">RESEARCH PORTAL</div>
-<h1>AI PSYCH Explorer</h1>
-<div class="sub">W1/W2 Longitudinal Data Explorer</div>
-<input type="password" id="auth-pw" placeholder="Enter password" autocomplete="off">
-<button class="btn-login" id="auth-btn">Sign In</button>
-<div class="err" id="auth-err"></div>
+<h1 id="auth-title">AI PSYCH Explorer</h1>
+<div class="sub" id="auth-sub">W1/W2 Longitudinal Data Explorer</div>
+<label for="auth-pw" class="sr-only">Password</label>
+<input type="password" id="auth-pw" placeholder="Enter password" autocomplete="off" aria-label="Password">
+<button class="btn-login" id="auth-btn" aria-label="Sign in to dashboard">Sign In</button>
+<div class="err" id="auth-err" role="alert" aria-live="polite"></div>
 </div>
 </div>
 
@@ -426,6 +460,132 @@ function proportionZ(p1,n1,p2,n2){
 var pp=(p1*n1+p2*n2)/(n1+n2);if(pp===0||pp===1)return{z:0,p:1};
 var se=Math.sqrt(pp*(1-pp)*(1/n1+1/n2));if(se===0)return{z:0,p:1};
 var z=(p1-p2)/se;return{z:z,p:2*(1-normCDF(Math.abs(z)))};}
+
+/* Variance Inflation Factor: VIF_j = 1 / (1 - R^2_j),
+   where R^2_j is from regressing X_j on all other predictors.
+   X is the full design matrix INCLUDING intercept column at index 0;
+   we compute VIF for columns 1..p-1. Returns array with VIF values
+   (entry 0 = null for intercept). */
+function computeVIF(X){
+  var n=X.length;if(!n)return[];
+  var p=X[0].length;
+  var vifs=new Array(p);vifs[0]=null;
+  if(p<3)return vifs; // need at least 2 predictors for VIF to be meaningful
+  for(var j=1;j<p;j++){
+    // Target = X[:, j]; Design = X with intercept col + all cols except j
+    var yCol=[],Xo=[];
+    for(var i=0;i<n;i++){
+      yCol.push(X[i][j]);
+      var row=[1];
+      for(var k=1;k<p;k++){if(k===j)continue;row.push(X[i][k]);}
+      Xo.push(row);
+    }
+    var r=olsReg(yCol,Xo,[]);
+    if(r.error||r.r2>=1){vifs[j]=Infinity;continue;}
+    vifs[j]=r.r2<1?1/(1-r.r2):Infinity;
+  }
+  return vifs;
+}
+
+/* Bootstrap 95% percentile CI for the mediation indirect effect (a*b).
+   Resamples (x,m,y) triples with replacement, nBoot times. */
+function bootstrapMediation(x,m,y,nBoot){
+  nBoot=nBoot||1000;
+  var n=x.length;var ab=new Array(nBoot);var valid=0;
+  for(var b=0;b<nBoot;b++){
+    var xB=new Array(n),mB=new Array(n),yB=new Array(n);
+    for(var i=0;i<n;i++){
+      var idx=Math.floor(Math.random()*n);
+      xB[i]=x[idx];mB[i]=m[idx];yB[i]=y[idx];
+    }
+    var r=sobelMed(xB,mB,yB);
+    if(!r.error&&isFinite(r.ab)){ab[valid++]=r.ab;}
+  }
+  if(valid<20)return{lo:NaN,hi:NaN,n:valid};
+  ab.length=valid;
+  ab.sort(function(a,b){return a-b;});
+  var lo=ab[Math.floor(valid*0.025)],hi=ab[Math.floor(valid*0.975)];
+  return{lo:lo,hi:hi,n:valid};
+}
+
+/* Count outliers (|standardized residual| > 3) and flag. Returns {out, pct}. */
+function residualOutliers(y,X,beta){
+  var n=y.length;var resids=new Array(n);
+  var ssRes=0;
+  for(var i=0;i<n;i++){
+    var pred=0;for(var j=0;j<X[0].length;j++)pred+=X[i][j]*beta[j];
+    resids[i]=y[i]-pred;ssRes+=resids[i]*resids[i];
+  }
+  var df=n-X[0].length;
+  var rmse=df>0?Math.sqrt(ssRes/df):0;
+  if(rmse===0)return{n_out:0,pct:0,n:n};
+  var out=0;for(var i=0;i<n;i++){if(Math.abs(resids[i]/rmse)>3)out++;}
+  return{n_out:out,pct:n>0?100*out/n:0,n:n};
+}
+
+/* ============================================================
+   CSV EXPORT / CANVAS EXPORT HELPERS
+   ============================================================ */
+function csvEscape(v){
+  if(v===null||v===undefined)return '';
+  var s=String(v);
+  if(s.indexOf(',')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0){s='"'+s.replace(/"/g,'""')+'"';}
+  return s;
+}
+function downloadCSV(rows,filename){
+  var lines=[];
+  rows.forEach(function(r){lines.push(r.map(csvEscape).join(','));});
+  var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=filename||'export.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
+function downloadCanvasPNG(canvas,filename){
+  try{
+    canvas.toBlob(function(blob){
+      if(!blob)return;
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');a.href=url;a.download=filename||'plot.png';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    });
+  }catch(e){/* noop */}
+}
+/* High-DPI canvas sizing: set CSS size, scale backing store by DPR.
+   After this, draw using cssW x cssH coordinates (context is pre-scaled). */
+function setupHiDPICanvas(canvas,cssW,cssH){
+  var dpr=window.devicePixelRatio||1;
+  canvas.width=Math.round(cssW*dpr);
+  canvas.height=Math.round(cssH*dpr);
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
+  var ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx:ctx,W:cssW,H:cssH};
+}
+
+/* Build an "Export CSV" button wired to download a coefficient/stat table. */
+function makeExportBtn(label,onClick){
+  var btn=document.createElement('button');
+  btn.className='preset-btn';
+  btn.textContent=label;
+  btn.style.cssText='margin-left:auto;padding:4px 10px;font-size:10px;';
+  btn.setAttribute('aria-label',label);
+  btn.addEventListener('click',onClick);
+  return btn;
+}
+
+/* Loading spinner element (for analyses that may be slow) */
+function makeLoadingEl(text){
+  var w=document.createElement('div');
+  w.style.cssText='display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;color:var(--text-muted);font-size:12px;';
+  var sp=document.createElement('span');
+  sp.style.cssText='width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;';
+  w.appendChild(sp);
+  var t=document.createElement('span');t.textContent=text||'Computing...';w.appendChild(t);
+  return w;
+}
 
 /* ============================================================
    DATA HELPERS
@@ -682,10 +842,13 @@ function updateSampleBadge(){
 
 function buildTabs(){
   var bar=document.getElementById('tab-bar');
+  bar.setAttribute('role','tablist');
   clearEl(bar);
   TABS.forEach(function(t){
     var btn=el('button','tab-btn',t.label);
     btn.dataset.tab=t.id;
+    btn.setAttribute('role','tab');
+    btn.setAttribute('aria-label','Switch to '+t.label+' tab');
     btn.addEventListener('click',function(){switchTab(t.id);});
     bar.appendChild(btn);
   });
@@ -2238,7 +2401,7 @@ function renderSBSGrouped(panel,key){
    TAB 4: ADVANCED ANALYSIS
    ============================================================ */
 function buildAdvancedTab(pane){
-  if(!tabState.adv)tabState.adv={mode:'correlation',waveMode:'w1',filterPreset:'all',selVars:[],dv:'',ivs:[],medX:'',medM:'',medY:'',modDV:'',modIV:'',modMod:''};
+  if(!tabState.adv)tabState.adv={mode:'correlation',waveMode:'w1',filterPreset:'all',selVars:[],dv:'',ivs:[],medX:'',medM:'',medY:'',modDV:'',modIV:'',modMod:'',hierarchical:false};
   var st=tabState.adv;
 
   pane.style.flexDirection='column';
@@ -2378,12 +2541,17 @@ function renderRQCards(area,st,mbar,wSel,fSel,configArea,resultsPanel){
   rqs.forEach(function(rq){
     var card=el('div','rq-card');
     card.style.borderLeftColor=rq.accent;
+    card.setAttribute('role','button');
+    card.setAttribute('tabindex','0');
+    card.setAttribute('aria-label','Run research question: '+rq.q);
 
     card.appendChild(el('div','rq-icon',rq.icon));
     card.appendChild(el('div','rq-q',rq.q));
     card.appendChild(el('div','rq-desc',rq.desc));
     var run=el('div','rq-run','\u25B6 Run Analysis');
     card.appendChild(run);
+
+    card.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();card.click();}});
 
     card.addEventListener('click',function(){
       // Set mode
@@ -2618,6 +2786,25 @@ function renderAdvConfig(area,st){
     });
     gIV.appendChild(ivChips);area.appendChild(gIV);
 
+    // Hierarchical (null model) toggle — Model 1: Age+Gender only, Model 2: + selected IVs
+    var gH=el('div','config-group');
+    var hLab=el('label','');
+    var hChk=document.createElement('input');
+    hChk.type='checkbox';hChk.id='hier-chk';hChk.checked=!!st.hierarchical;
+    hChk.style.cssText='margin-right:6px;vertical-align:middle;';
+    hChk.setAttribute('aria-label','Compare against null model (Age + Gender only)');
+    hChk.addEventListener('change',function(){
+      st.hierarchical=hChk.checked;
+      renderAdvResults(document.getElementById('adv-results'),st);
+    });
+    hLab.appendChild(hChk);
+    var hText=document.createElement('span');hText.textContent='Compare vs. null model (Age + Gender)';hLab.appendChild(hText);
+    hLab.style.cssText='font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;';
+    hLab.htmlFor='hier-chk';
+    gH.appendChild(hLab);
+    gH.appendChild(hint('Hierarchical regression: Model 1 (null) = Age + Gender only, Model 2 (full) = null + selected IVs. Reports \u0394R\u00B2 and F-change.'));
+    area.appendChild(gH);
+
   } else if(st.mode==='mediation'){
     var medLabels=[
       {lbl:'X — Predictor (cause)',hint:'The starting variable. Can be binary (0/1), ordinal, or continuous.'},
@@ -2807,7 +2994,24 @@ function renderCorrelation(panel,st){
 
   // Heatmap (use full labels; CSS handles overflow with ellipsis + hover title)
   var card=el('div','card');
-  card.appendChild(el('div','card-title','Correlation Matrix'));
+  var corTit=el('div','card-title','Correlation Matrix');
+  var corExp=makeExportBtn('Export CSV',function(){
+    var rows2=[];
+    // Header row
+    var hdr=[''];for(var j=0;j<nv;j++)hdr.push(vLabel(j));rows2.push(hdr);
+    for(var i=0;i<nv;i++){
+      var row=[vLabel(i)];
+      for(var j=0;j<nv;j++)row.push(rMat[i][j].toFixed(4));
+      rows2.push(row);
+    }
+    rows2.push([]);rows2.push(['Pairwise (pair, r, p, N)']);
+    for(var i=0;i<nv;i++){for(var j=i+1;j<nv;j++){
+      rows2.push([vLabel(i)+' x '+vLabel(j),rMat[i][j].toFixed(4),pMat[i][j].toFixed(6),nMat[i][j]]);
+    }}
+    downloadCSV(rows2,'correlation_matrix.csv');
+  });
+  corTit.appendChild(corExp);
+  card.appendChild(corTit);
 
   var tbl=el('table','heatmap');
   var thead=el('thead','');
@@ -2964,6 +3168,57 @@ function renderRegression(panel,st){
     return;
   }
 
+  // Hierarchical comparison (linear only): build null model with Age + Gender from same data source as IVs
+  var hierResult=null;
+  if(!dvIsBinary&&st.hierarchical){
+    var ageKey='Age',genKey='Gender';
+    // Build null design matrix using same y/X rows (must include Age & Gender for the rows used)
+    var srcH=isCross?DATA.w1:(wave===1?DATA.w1:DATA.w2);
+    var ageArr=srcH[ageKey],genArr=srcH[genKey];
+    // Rebuild aligned data for null model using the same filter + rows logic as primary
+    var yH=[],XH=[];
+    if(isCross){
+      var dvArrH=DATA.w2[st.dv];
+      for(var i=0;i<DATA.meta.w2_n;i++){
+        if(!mask[i])continue;
+        var w1i=DATA.matched.link[i];if(w1i===null||w1i===undefined)continue;
+        var yv=dvArrH?dvArrH[i]:null;if(yv===null||yv===undefined||isNaN(yv))continue;
+        var av=ageArr?ageArr[w1i]:null,gv=genArr?genArr[w1i]:null;
+        if(av===null||av===undefined||isNaN(av)||gv===null||gv===undefined||isNaN(gv))continue;
+        // Also require all selected IVs present so sample matches full model
+        var okH=true;for(var jj=0;jj<allVars.length;jj++){var arrH=DATA.w1[allVars[jj]];var vv=arrH?arrH[w1i]:null;if(vv===null||vv===undefined||isNaN(vv)){okH=false;break;}}
+        if(!okH)continue;
+        yH.push(yv);XH.push([1,av,gv]);
+      }
+    } else {
+      var srcDv=wave===1?DATA.w1:DATA.w2;
+      var dvArrH=srcDv[st.dv];
+      for(var i=0;i<n;i++){
+        if(!mask[i])continue;
+        var yv=dvArrH?dvArrH[i]:null;if(yv===null||yv===undefined||isNaN(yv))continue;
+        var av=ageArr?ageArr[i]:null,gv=genArr?genArr[i]:null;
+        if(av===null||av===undefined||isNaN(av)||gv===null||gv===undefined||isNaN(gv))continue;
+        var okH=true;for(var jj=0;jj<allVars.length;jj++){var arrH=srcDv[allVars[jj]];var vv=arrH?arrH[i]:null;if(vv===null||vv===undefined||isNaN(vv)){okH=false;break;}}
+        if(!okH)continue;
+        yH.push(yv);XH.push([1,av,gv]);
+      }
+    }
+    if(yH.length>=5&&yH.length===y.length){
+      var nullRes=olsReg(yH,XH,['(Intercept)','Age','Gender']);
+      if(!nullRes.error){
+        // F-change: ((R2_full - R2_null)/(k2-k1)) / ((1-R2_full)/(n-k2-1))
+        var k1=XH[0].length-1,k2=X[0].length-1;
+        var deltaR2=result.r2-nullRes.r2;
+        var fChange=0,pChange=1;
+        if(k2>k1&&1-result.r2>0){
+          fChange=(deltaR2/(k2-k1))/((1-result.r2)/(result.n-k2-1));
+          pChange=1-fCDF(fChange,k2-k1,result.n-k2-1);
+        }
+        hierResult={nullR2:nullRes.r2,fullR2:result.r2,deltaR2:deltaR2,f:fChange,df1:k2-k1,df2:result.n-k2-1,p:pChange,nullAdjR2:nullRes.adj_r2};
+      }
+    }
+  }
+
   // "What you're testing" summary card
   var dvL=crossLabel(st.dv,'W2');
   var ivLabels=st.ivs.map(function(k){return crossLabel(k,'W1');});
@@ -2986,6 +3241,34 @@ function renderRegression(panel,st){
   var sumCard=el('div','card');
   var tit=el('div','card-title',(dvIsBinary?'Logistic':'Linear')+' Regression Results');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  // Export button (CSV of coefficients)
+  var exportBtn=makeExportBtn('Export CSV',function(){
+    var rows=[];
+    rows.push(['Term','B',dvIsBinary?'OR':'Beta_std','SE',dvIsBinary?'z':'t','p','CI_lo','CI_hi']);
+    for(var j=0;j<result.beta.length;j++){
+      rows.push([
+        result.vn[j],
+        result.beta[j].toFixed(6),
+        dvIsBinary?result.or[j].toFixed(6):(stdBetas&&stdBetas[j]!=null?stdBetas[j].toFixed(6):''),
+        result.se[j].toFixed(6),
+        (dvIsBinary?result.z[j]:result.t[j]).toFixed(6),
+        result.p[j].toFixed(6),
+        result.ci_lo[j].toFixed(6),
+        result.ci_hi[j].toFixed(6)
+      ]);
+    }
+    rows.push([]);
+    if(dvIsBinary){
+      rows.push(['McFadden_R2',result.pseudoR2.toFixed(6)]);
+    }else{
+      rows.push(['R2',result.r2.toFixed(6)]);
+      rows.push(['Adj_R2',result.adj_r2.toFixed(6)]);
+      rows.push(['F',result.f_stat.toFixed(6),'df_m',result.df_m,'df_res',result.df_res,'p',result.f_p.toFixed(6)]);
+    }
+    rows.push(['N',result.n]);
+    downloadCSV(rows,'regression_'+(st.dv||'model')+'.csv');
+  });
+  tit.appendChild(exportBtn);
   sumCard.appendChild(tit);
 
   var sumStats=el('div','');
@@ -2996,6 +3279,22 @@ function renderRegression(panel,st){
     sumStats.textContent='R\u00B2 = '+fmt(result.r2,3)+', Adj. R\u00B2 = '+fmt(result.adj_r2,3)+', F('+result.df_m+','+result.df_res+') = '+fmt(result.f_stat)+', p = '+fmtP(result.f_p);
   }
   sumCard.appendChild(sumStats);
+
+  // Hierarchical comparison display (linear only)
+  if(hierResult){
+    var hCard=el('div','');
+    hCard.style.cssText='background:var(--bg-input);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--text-secondary);border-left:3px solid '+(hierResult.p<.05?'var(--success)':'var(--border)')+';';
+    var hTit=el('div','');hTit.style.cssText='font-weight:600;color:var(--accent);margin-bottom:4px;font-size:11px;';
+    hTit.textContent='Hierarchical comparison (vs Age + Gender only)';hCard.appendChild(hTit);
+    var hBody=el('div','');
+    hBody.textContent='Model 1 (null, Age+Gender): R\u00B2 = '+fmt(hierResult.nullR2,3)+
+      ' \u2022 Model 2 (full): R\u00B2 = '+fmt(hierResult.fullR2,3)+
+      ' \u2022 \u0394R\u00B2 = '+fmt(hierResult.deltaR2,3)+
+      ' \u2022 F('+hierResult.df1+','+hierResult.df2+') = '+fmt(hierResult.f,2)+
+      ', p = '+fmtP(hierResult.p)+' '+sigStars(hierResult.p);
+    hCard.appendChild(hBody);
+    sumCard.appendChild(hCard);
+  }
 
   // Forest plot (skip intercept) — for both linear (B coefficients) and logistic (OR on log scale)
   if(!dvIsBinary){
@@ -3098,13 +3397,24 @@ function renderRegression(panel,st){
     }
   }
 
+  // Compute VIF (only for linear with >=2 predictors; skip intercept)
+  var vifs=null,maxVIF=0;
+  if(!dvIsBinary&&X[0].length>=3){
+    vifs=computeVIF(X);
+    for(var j=1;j<vifs.length;j++){if(isFinite(vifs[j])&&vifs[j]>maxVIF)maxVIF=vifs[j];}
+  }
+
   // Coefficient table
   var tCard=el('div','card');
-  tCard.appendChild(el('div','card-title','Coefficients'));
+  var coefTitle=el('div','card-title','Coefficients');
+  tCard.appendChild(coefTitle);
   var tbl=el('table','stats-table');
   var thead=el('thead','');
   var thr=el('tr','');
-  var hdrs=dvIsBinary?['Term','B','OR','SE','z','p','95% CI']:['Term','B','\u03B2 (std)','SE','t','p','95% CI'];
+  var hdrs;
+  if(dvIsBinary){hdrs=['Term','B','OR','SE','z','p','95% CI'];}
+  else if(vifs){hdrs=['Term','B','\u03B2 (std)','SE','t','p','95% CI','VIF'];}
+  else{hdrs=['Term','B','\u03B2 (std)','SE','t','p','95% CI'];}
   hdrs.forEach(function(h){thr.appendChild(el('th','',h));});
   thead.appendChild(thr);tbl.appendChild(thead);
   var tbody=el('tbody','');
@@ -3123,6 +3433,19 @@ function renderRegression(panel,st){
     if(result.p[j]<.05)ptd.className='sig';
     tr.appendChild(ptd);
     tr.appendChild(el('td','','['+fmt(result.ci_lo[j],3)+', '+fmt(result.ci_hi[j],3)+']'));
+    if(vifs){
+      var vifCell;
+      if(j===0){vifCell=el('td','','\u2014');}
+      else{
+        var v=vifs[j];
+        var vtxt=isFinite(v)?fmt(v,2):'\u221E';
+        vifCell=el('td','',vtxt);
+        if(isFinite(v)&&v>10){vifCell.style.color='var(--error)';vifCell.style.fontWeight='700';vifCell.title='VIF > 10: severe multicollinearity';}
+        else if(isFinite(v)&&v>5){vifCell.style.color='var(--caution)';vifCell.style.fontWeight='700';vifCell.title='VIF > 5: moderate multicollinearity';}
+        else if(!isFinite(v)){vifCell.style.color='var(--error)';vifCell.title='Perfect collinearity';}
+      }
+      tr.appendChild(vifCell);
+    }
     tbody.appendChild(tr);
   }
   tbl.appendChild(tbody);tCard.appendChild(tbl);
@@ -3131,6 +3454,27 @@ function renderRegression(panel,st){
     stdNote.style.cssText='font-size:10px;color:var(--text-muted);margin-top:6px;';
     stdNote.textContent='\u03B2 (std) = standardized beta = B \u00D7 (SD_x / SD_y). Useful for comparing effect sizes across predictors on different scales.';
     tCard.appendChild(stdNote);
+  }
+  // VIF warning / outlier diagnostics (linear only)
+  if(!dvIsBinary&&vifs){
+    var vifNote=el('div','');
+    vifNote.style.cssText='font-size:10px;color:var(--text-muted);margin-top:4px;';
+    vifNote.textContent='VIF = variance inflation factor (1/(1-R\u00B2_j)). VIF>5 = moderate multicollinearity; VIF>10 = severe.';
+    tCard.appendChild(vifNote);
+    if(maxVIF>5){
+      var vifWarn=el('div','');
+      vifWarn.style.cssText='margin-top:8px;padding:8px 12px;border-radius:6px;background:rgba(232,208,112,.1);border-left:3px solid '+(maxVIF>10?'var(--error)':'var(--caution)')+';font-size:11px;color:'+(maxVIF>10?'var(--error)':'var(--caution)')+';';
+      vifWarn.textContent=(maxVIF>10?'\u26A0 Severe multicollinearity detected':'\u26A0 Moderate multicollinearity')+' (max VIF = '+fmt(maxVIF,2)+'). Coefficients may be unstable. Consider removing or combining correlated predictors.';
+      tCard.appendChild(vifWarn);
+    }
+    // Residual outliers check
+    var outRes=residualOutliers(y,X,result.beta);
+    var outNote=el('div','');
+    outNote.style.cssText='font-size:11px;margin-top:8px;padding:6px 10px;background:var(--bg-input);border-radius:var(--radius-sm);color:var(--text-secondary);';
+    var outText='Outliers (|standardized residual| > 3): N = '+outRes.n_out+' ('+fmt(outRes.pct,1)+'%)';
+    if(outRes.pct>2){outNote.style.borderLeft='3px solid var(--caution)';outNote.style.color='var(--caution)';outText+=' \u2014 above 2% threshold; check for influential cases.';}
+    outNote.textContent=outText;
+    tCard.appendChild(outNote);
   }
   panel.appendChild(tCard);
 
@@ -3158,10 +3502,14 @@ function renderRegression(panel,st){
       ppCard.appendChild(ppNote);
 
       var ppCanvas=document.createElement('canvas');
-      ppCanvas.width=640;ppCanvas.height=360;
-      ppCanvas.style.width='100%';ppCanvas.style.maxWidth='640px';
+      var ppSetup=setupHiDPICanvas(ppCanvas,640,360);
+      ppCanvas.style.maxWidth='100%';
       ppCanvas.style.background='var(--bg-input)';ppCanvas.style.borderRadius='var(--radius-sm)';
       ppCard.appendChild(ppCanvas);
+      // PNG download button
+      var ppDl=makeExportBtn('Save PNG',function(){downloadCanvasPNG(ppCanvas,'predicted_prob.png');});
+      ppDl.style.marginTop='6px';ppDl.style.marginLeft='0';
+      ppCard.appendChild(ppDl);
 
       // Compute means for each column (for holding covariates constant)
       var colMeans=[];
@@ -3183,8 +3531,8 @@ function renderRegression(panel,st){
         return 1/(1+Math.exp(-Math.max(-500,Math.min(500,eta))));
       }
 
-      var ctxP=ppCanvas.getContext('2d');
-      var Wp=ppCanvas.width,Hp=ppCanvas.height;
+      var ctxP=ppSetup.ctx;
+      var Wp=ppSetup.W,Hp=ppSetup.H;
       var padLp=60,padRp=20,padTp=20,padBp=50;
       var plotWp=Wp-padLp-padRp,plotHp=Hp-padTp-padBp;
 
@@ -3331,10 +3679,31 @@ function renderMediation(panel,st){
   testCard.appendChild(testDetail);
   panel.appendChild(testCard);
 
+  // Bootstrap 95% CI for indirect effect (percentile, 1000 resamples)
+  var boot=bootstrapMediation(x,m,y,1000);
+
   // Path diagram — 4 paths: a, b, c (total), c' (direct)
   var card=el('div','card');
   var tit=el('div','card-title','Path Diagram');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  // Export CSV
+  var medExport=makeExportBtn('Export CSV',function(){
+    var rows=[
+      ['Path','Coefficient','SE','p'],
+      ['a (X->M)',result.a.toFixed(6),result.se_a.toFixed(6),result.p_a.toFixed(6)],
+      ['b (M->Y | X)',result.b.toFixed(6),result.se_b.toFixed(6),result.p_b.toFixed(6)],
+      ['c (total X->Y)',result.c.toFixed(6),'',''],
+      ["c' (direct X->Y)",result.cp.toFixed(6),'',''],
+      ['ab (indirect)',result.ab.toFixed(6),'',''],
+      ['Sobel Z',result.sob_z.toFixed(6),'',result.sob_p.toFixed(6)],
+      ['Pct_mediated',result.pct.toFixed(4),'',''],
+      ['Bootstrap_CI_lo',isFinite(boot.lo)?boot.lo.toFixed(6):'',''],
+      ['Bootstrap_CI_hi',isFinite(boot.hi)?boot.hi.toFixed(6):'',''],
+      ['N',result.n,'','']
+    ];
+    downloadCSV(rows,'mediation_'+(st.medX||'x')+'_'+(st.medM||'m')+'_'+(st.medY||'y')+'.csv');
+  });
+  tit.appendChild(medExport);
   card.appendChild(tit);
 
   // Top row: X -> M -> Y with a and b paths
@@ -3409,13 +3778,26 @@ function renderMediation(panel,st){
   card.appendChild(bottomRow);
 
   // Indirect effect summary below diagram
+  // Bootstrap CI "significance": CI excludes 0 (both lo & hi same sign, neither 0)
+  var bootSig=isFinite(boot.lo)&&isFinite(boot.hi)&&((boot.lo>0&&boot.hi>0)||(boot.lo<0&&boot.hi<0));
+  var anySig=result.sob_p<.05||bootSig;
   var indirect=el('div','');
   indirect.style.cssText='text-align:center;padding:10px 12px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:12px;margin-bottom:10px;';
-  var indirectColor=result.sob_p<.05?'var(--success)':'var(--text-muted)';
+  var indirectColor=anySig?'var(--success)':'var(--text-muted)';
   indirect.style.color=indirectColor;
   indirect.style.borderLeft='3px solid '+indirectColor;
   indirect.textContent='Indirect effect (a\u00D7b) = '+fmt(result.ab,3)+', Sobel z = '+fmt(result.sob_z,3)+', p = '+fmtP(result.sob_p)+' '+sigStars(result.sob_p);
   card.appendChild(indirect);
+
+  // Bootstrap CI line (more robust than Sobel; percentile 95% CI)
+  if(isFinite(boot.lo)&&isFinite(boot.hi)){
+    var bootLine=el('div','');
+    bootLine.style.cssText='text-align:center;padding:8px 12px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:12px;margin-bottom:10px;';
+    bootLine.style.color=bootSig?'var(--success)':'var(--text-muted)';
+    bootLine.style.borderLeft='3px solid '+(bootSig?'var(--success)':'var(--border)');
+    bootLine.textContent='Bootstrap 95% CI: ['+fmt(boot.lo,3)+', '+fmt(boot.hi,3)+'] ('+boot.n+' resamples)'+(bootSig?' \u2014 excludes 0, significant':' \u2014 includes 0, n.s.');
+    card.appendChild(bootLine);
+  }
 
   // Results table
   var tbl=el('table','stats-table');
@@ -3426,6 +3808,7 @@ function renderMediation(panel,st){
     ['Indirect effect (a*b)',fmt(result.ab,3)],
     ['Sobel Z',fmt(result.sob_z,3)],
     ['Sobel p',fmtP(result.sob_p)+' '+sigStars(result.sob_p)],
+    ['Bootstrap 95% CI',isFinite(boot.lo)?'['+fmt(boot.lo,3)+', '+fmt(boot.hi,3)+']':'n/a'],
     ['% Mediated',fmt(result.pct,1)+'%']
   ];
   rows.forEach(function(r){
@@ -3533,6 +3916,22 @@ function renderModeration(panel,st){
   var card=el('div','card');
   var tit=el('div','card-title','Model Summary');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
+  // Export CSV for moderation
+  var modExportBtn=makeExportBtn('Export CSV',function(){
+    var modRes2=result.mod;
+    var rows2=[['Term','B','SE','t','p']];
+    for(var j=0;j<modRes2.beta.length;j++){
+      rows2.push([(['Intercept',getVarLabel(st.modIV)+' (c)',getVarLabel(st.modMod)+' (c)',getVarLabel(st.modIV)+' x '+getVarLabel(st.modMod)][j]||modRes2.vn[j]),
+        modRes2.beta[j].toFixed(6),modRes2.se[j].toFixed(6),modRes2.t[j].toFixed(6),modRes2.p[j].toFixed(6)]);
+    }
+    rows2.push([]);
+    rows2.push(['R2',modRes2.r2.toFixed(6),'Adj_R2',modRes2.adj_r2.toFixed(6),'F',modRes2.f_stat.toFixed(6),'p',modRes2.f_p.toFixed(6),'N',result.n]);
+    rows2.push([]);
+    rows2.push(['Level','Slope','SE','t','p']);
+    result.slopes.forEach(function(s){rows2.push([s.l,s.sl.toFixed(6),s.se.toFixed(6),s.t.toFixed(6),s.p.toFixed(6)]);});
+    downloadCSV(rows2,'moderation_'+(st.modDV||'dv')+'.csv');
+  });
+  tit.appendChild(modExportBtn);
   card.appendChild(tit);
 
   var modRes=result.mod;
@@ -3671,9 +4070,13 @@ function renderModeration(panel,st){
   plotCard.appendChild(subNote);
 
   var canvas=document.createElement('canvas');
-  canvas.width=640;canvas.height=360;
-  canvas.style.width='100%';canvas.style.maxWidth='640px';canvas.style.background='var(--bg-input)';canvas.style.borderRadius='var(--radius-sm)';
+  var modSetup=setupHiDPICanvas(canvas,640,360);
+  canvas.style.maxWidth='100%';canvas.style.background='var(--bg-input)';canvas.style.borderRadius='var(--radius-sm)';
   plotCard.appendChild(canvas);
+  // PNG download button for moderation plot
+  var modDl=makeExportBtn('Save PNG',function(){downloadCanvasPNG(canvas,'interaction_plot.png');});
+  modDl.style.marginTop='6px';modDl.style.marginLeft='0';
+  plotCard.appendChild(modDl);
 
   // Compute means/SDs for IV, Moderator, DV (used for un-centering)
   var xMean=0,mMean=0;for(var ci=0;ci<xv.length;ci++){xMean+=xv[ci];mMean+=mv[ci];}
@@ -3714,8 +4117,8 @@ function renderModeration(panel,st){
   var plotXMin=xMin-xPad,plotXMax=xMax+xPad;
   var plotYMin=yMin-yPad,plotYMax=yMax+yPad;
 
-  var ctx=canvas.getContext('2d');
-  var W=canvas.width,H=canvas.height;
+  var ctx=modSetup.ctx;
+  var W=modSetup.W,H=modSetup.H;
   var padL=60,padR=20,padT=20,padB=50;
   var plotW=W-padL-padR,plotH=H-padT-padB;
 
