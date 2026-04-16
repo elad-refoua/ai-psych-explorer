@@ -2411,10 +2411,12 @@ function getAdvFilter(st){
 
 function getAdvWave(st){return st.waveMode==='w2'||st.waveMode==='cross'?2:1;}
 function getContinuousVars(wave){
-  return getVarsForWave(wave).filter(function(k){return isContinuous(k);});
+  // Include continuous AND ordinal (treated numerically)
+  return getVarsForWave(wave).filter(function(k){var m=getVarMeta(k);return m&&(m.type==='continuous'||m.type==='ordinal');});
 }
 function getAllAnalysisVars(wave){
-  return getVarsForWave(wave).filter(function(k){return isContinuous(k)||isBinary(k);});
+  // Include continuous, ordinal, AND binary (can be DV for logistic, or moderator)
+  return getVarsForWave(wave).filter(function(k){var m=getVarMeta(k);return m&&(m.type==='continuous'||m.type==='ordinal'||m.type==='binary');});
 }
 
 function renderAdvConfig(area,st){
@@ -2514,9 +2516,9 @@ function renderAdvConfig(area,st){
 
   } else if(st.mode==='mediation'){
     var medLabels=[
-      {lbl:'X — Predictor (cause)',hint:'The starting variable. Its effect is being decomposed.'},
-      {lbl:'M — Mediator (mechanism)',hint:'The intermediate variable that transmits X\'s effect to Y. Must be continuous.'},
-      {lbl:'Y — Outcome (effect)',hint:'The final variable. What you want to explain.'}
+      {lbl:'X — Predictor (cause)',hint:'The starting variable. Can be binary (0/1), ordinal, or continuous.'},
+      {lbl:'M — Mediator (mechanism)',hint:'The intermediate variable that transmits X\'s effect to Y. Must be continuous or ordinal.'},
+      {lbl:'Y — Outcome (effect)',hint:'The final variable. What you want to explain. Can be binary or continuous.'}
     ];
     medLabels.forEach(function(info,idx){
       var g=el('div','config-group');
@@ -2524,19 +2526,23 @@ function renderAdvConfig(area,st){
       g.appendChild(hint(info.hint));
       var sel=el('select','');
       sel.appendChild(el('option','','-- Select --'));
-      var pool=idx===2&&st.waveMode==='cross'?getContinuousVars(2):contVars;
+      // X and Y can be binary; M must be continuous/ordinal
+      var pool;
+      if(idx===1){pool=contVars;}
+      else if(idx===2&&st.waveMode==='cross'){pool=getAllAnalysisVars(2);}
+      else{pool=allVars;}
       pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
       var prop=['medX','medM','medY'][idx];
-      sel.value=st[prop];
+      sel.value=st[prop]||'';
       sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
       g.appendChild(sel);area.appendChild(g);
     });
 
   } else if(st.mode==='moderation'){
     var modLabels=[
-      {lbl:'DV — Outcome',hint:'The variable being predicted.'},
+      {lbl:'DV — Outcome',hint:'The variable being predicted. Must be continuous or ordinal.'},
       {lbl:'IV — Predictor',hint:'The main effect whose relationship to DV you want to understand.'},
-      {lbl:'Moderator — changes the IV\u2192DV relationship',hint:'The variable whose levels determine the strength/direction of the IV\u2192DV effect.'}
+      {lbl:'Moderator — changes the IV\u2192DV relationship',hint:'The variable whose levels determine the strength/direction of the IV\u2192DV effect. Can be binary (0/1), ordinal, or continuous.'}
     ];
     modLabels.forEach(function(info,idx){
       var g=el('div','config-group');
@@ -2544,10 +2550,13 @@ function renderAdvConfig(area,st){
       g.appendChild(hint(info.hint));
       var sel=el('select','');
       sel.appendChild(el('option','','-- Select --'));
-      var pool=(idx===0&&st.waveMode==='cross')?getContinuousVars(2):contVars;
+      // DV must be continuous/ordinal; IV and Moderator can also be binary
+      var pool;
+      if(idx===0){pool=st.waveMode==='cross'?getContinuousVars(2):contVars;}
+      else{pool=st.waveMode==='cross'?getAllAnalysisVars(1):allVars;}
       pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
       var prop=['modDV','modIV','modMod'][idx];
-      sel.value=st[prop];
+      sel.value=st[prop]||'';
       sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
       g.appendChild(sel);area.appendChild(g);
     });
