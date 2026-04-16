@@ -2426,9 +2426,45 @@ function renderAdvConfig(area,st){
   else wBanner.textContent='Cross-wave \u2014 Predictors from W1 (N='+DATA.meta.w1_n+'), Outcomes from W2 (N='+DATA.meta.w2_n+')';
   area.appendChild(wBanner);
 
+  // Method explanation box — explains WHAT the analysis does
+  var methodBox=el('div','');
+  methodBox.style.cssText='background:rgba(184,160,224,.06);border:1px solid rgba(184,160,224,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-primary);line-height:1.5;';
+  var methodTitle=el('div','');
+  methodTitle.style.cssText='font-weight:600;color:var(--purple);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;';
+  var methodBody=el('div','');
+  methodBody.style.cssText='color:var(--text-secondary);';
+  if(st.mode==='correlation'){
+    methodTitle.textContent='\uD83D\uDCCA Pearson Correlation \u2014 How variables co-vary';
+    methodBody.textContent='Select 2 or more continuous variables. The analysis computes the linear association between every pair. r ranges from \u22121 (perfect negative) to +1 (perfect positive); 0 means no linear relationship. A significant correlation (p<.05) means the pattern is unlikely due to chance. Correlation is NOT causation.';
+  } else if(st.mode==='regression'){
+    methodTitle.textContent='\uD83D\uDCC8 Regression \u2014 What predicts the outcome?';
+    methodBody.textContent='Select ONE outcome (DV) and one or more predictors (IVs). The analysis estimates how much each predictor uniquely contributes to the outcome, controlling for the others. If the DV is binary (0/1 \u2014 e.g., AI-MH yes/no), logistic regression runs automatically (reports Odds Ratios). If continuous, linear regression runs (reports beta coefficients and R\u00B2).';
+  } else if(st.mode==='mediation'){
+    methodTitle.textContent='\u26A1 Mediation (Sobel) \u2014 How does X affect Y?';
+    methodBody.textContent='Tests whether M (the mediator) explains the mechanism by which X (predictor) affects Y (outcome). The indirect path X\u2192M\u2192Y is tested for significance with the Sobel z-test. If significant, it suggests X influences Y partly or fully BECAUSE X changes M, which in turn changes Y. Example: Does distress (M) explain why attachment anxiety (X) leads to AI-MH use (Y)?';
+  } else if(st.mode==='moderation'){
+    methodTitle.textContent='\u26A0 Moderation \u2014 Does the effect of X on Y depend on Mod?';
+    methodBody.textContent='Tests whether the relationship between IV (X) and DV (Y) changes across levels of a Moderator. The analysis adds an X\u00D7Mod interaction term. Simple slopes are computed at Low (\u22121SD), Mean, and High (+1SD) moderator values. Example: Does anthropomorphism predict AI-attachment anxiety differently at low vs. high distress? A significant interaction means YES.';
+  } else {
+    methodTitle.textContent='Select an analysis mode above';
+    methodBody.textContent='Choose Correlation, Regression, Mediation, or Moderation. Each one answers a different research question about the data.';
+  }
+  methodBox.appendChild(methodTitle);
+  methodBox.appendChild(methodBody);
+  area.appendChild(methodBox);
+
+  // Helper to build explanation tooltip under a label
+  function hint(text){
+    var h=el('div','');
+    h.style.cssText='font-size:10px;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px;margin-bottom:6px;font-style:italic;';
+    h.textContent=text;
+    return h;
+  }
+
   if(st.mode==='correlation'){
     var g=el('div','config-group');
-    g.appendChild(el('label','','Select 2+ variables (click to toggle)'));
+    g.appendChild(el('label','','Select 2+ continuous variables'));
+    g.appendChild(hint('Click any chip to add/remove from the correlation matrix. Each pair will be tested with Pearson r.'));
     var chips=el('div','iv-chips');
     contVars.forEach(function(k){
       var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
@@ -2445,7 +2481,8 @@ function renderAdvConfig(area,st){
 
   } else if(st.mode==='regression'){
     var gDV=el('div','config-group');
-    gDV.appendChild(el('label','','Dependent Variable'));
+    gDV.appendChild(el('label','','Dependent Variable (DV) — what you want to predict'));
+    gDV.appendChild(hint('The outcome. If binary (e.g., AI_MH), logistic regression runs automatically. If continuous (e.g., DASS_Total), linear regression runs.'));
     var dvSel=el('select','');
     dvSel.appendChild(el('option','','-- Select DV --'));
     dvVars.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;dvSel.appendChild(o);});
@@ -2454,7 +2491,8 @@ function renderAdvConfig(area,st){
     gDV.appendChild(dvSel);area.appendChild(gDV);
 
     var gIV=el('div','config-group');
-    gIV.appendChild(el('label','','Independent Variables (click to toggle)'));
+    gIV.appendChild(el('label','','Independent Variables (IVs) — predictors'));
+    gIV.appendChild(hint('One or more variables that might predict the DV. Each coefficient shows the unique effect controlling for all others.'));
     var ivChips=el('div','iv-chips');
     var ivPool=st.waveMode==='cross'?getContinuousVars(1):contVars;
     ivPool.forEach(function(k){
@@ -2470,9 +2508,15 @@ function renderAdvConfig(area,st){
     gIV.appendChild(ivChips);area.appendChild(gIV);
 
   } else if(st.mode==='mediation'){
-    ['X (Predictor)','M (Mediator)','Y (Outcome)'].forEach(function(lbl,idx){
+    var medLabels=[
+      {lbl:'X — Predictor (cause)',hint:'The starting variable. Its effect is being decomposed.'},
+      {lbl:'M — Mediator (mechanism)',hint:'The intermediate variable that transmits X\'s effect to Y. Must be continuous.'},
+      {lbl:'Y — Outcome (effect)',hint:'The final variable. What you want to explain.'}
+    ];
+    medLabels.forEach(function(info,idx){
       var g=el('div','config-group');
-      g.appendChild(el('label','',lbl));
+      g.appendChild(el('label','',info.lbl));
+      g.appendChild(hint(info.hint));
       var sel=el('select','');
       sel.appendChild(el('option','','-- Select --'));
       var pool=idx===2&&st.waveMode==='cross'?getContinuousVars(2):contVars;
@@ -2484,9 +2528,15 @@ function renderAdvConfig(area,st){
     });
 
   } else if(st.mode==='moderation'){
-    ['DV (Outcome)','IV (Predictor)','Moderator'].forEach(function(lbl,idx){
+    var modLabels=[
+      {lbl:'DV — Outcome',hint:'The variable being predicted.'},
+      {lbl:'IV — Predictor',hint:'The main effect whose relationship to DV you want to understand.'},
+      {lbl:'Moderator — changes the IV\u2192DV relationship',hint:'The variable whose levels determine the strength/direction of the IV\u2192DV effect.'}
+    ];
+    modLabels.forEach(function(info,idx){
       var g=el('div','config-group');
-      g.appendChild(el('label','',lbl));
+      g.appendChild(el('label','',info.lbl));
+      g.appendChild(hint(info.hint));
       var sel=el('select','');
       sel.appendChild(el('option','','-- Select --'));
       var pool=(idx===0&&st.waveMode==='cross')?getContinuousVars(2):contVars;
@@ -2497,6 +2547,28 @@ function renderAdvConfig(area,st){
       g.appendChild(sel);area.appendChild(g);
     });
   }
+}
+
+function buildResultsHelpBanner(mode){
+  var box=el('div','');
+  box.style.cssText='background:rgba(109,216,160,.06);border:1px solid rgba(109,216,160,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text-primary);line-height:1.5;';
+  var title=el('div','');
+  title.style.cssText='font-weight:600;color:var(--success);margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;';
+  title.textContent='How to read these results';
+  var body=el('div','');
+  body.style.cssText='color:var(--text-secondary);';
+  if(mode==='correlation'){
+    body.textContent='The heat map shows r values (colored: green=positive, red=negative, darker=stronger). Values close to \u00B11 = strong; close to 0 = weak. The table below lists each pair with r, p-value, and N. Look for p<.05 (significant) and Cohen\'s r conventions: |r|\u2265.10=small, \u2265.30=medium, \u2265.50=large.';
+  } else if(mode==='regression'){
+    body.textContent='The forest plot shows each predictor\'s coefficient (dot) and 95% CI (line). If the line doesn\'t cross zero, the effect is significant. The coefficient table shows exact values: \u03B2 (linear) or OR (logistic), SE, p. Overall model fit: R\u00B2 (linear) or pseudo-R\u00B2 (logistic). Higher = more variance explained.';
+  } else if(mode==='mediation'){
+    body.textContent='The path diagram shows all 4 paths: a (X\u2192M), b (M\u2192Y), c (total X\u2192Y), c\u2032 (direct X\u2192Y after controlling M). The indirect effect (a\u00D7b) is what mediation tests. Sobel z\u00B2\u22651.96, p<.05 = significant mediation. Full mediation: c\u2032 becomes non-significant. Partial: c\u2032 reduces but stays significant.';
+  } else if(mode==='moderation'){
+    body.textContent='Look at the interaction coefficient (X\u00D7Mod) row: if p<.05, moderation is significant. The simple slopes table shows how the IV\u2192DV relationship differs at Low (\u22121SD), Mean, and High (+1SD) moderator values. If the slopes change sign or significance across levels, the moderator is meaningful.';
+  }
+  box.appendChild(title);
+  box.appendChild(body);
+  return box;
 }
 
 function renderAdvResults(panel,st){
@@ -2518,6 +2590,8 @@ function renderAdvResults(panel,st){
   // Hide research question cards when showing results
   var rqContainer=document.getElementById('adv-rq-area');
   if(rqContainer)rqContainer.style.display='none';
+  // Add "how to read" help banner
+  if(st.mode)panel.appendChild(buildResultsHelpBanner(st.mode));
   if(st.mode==='correlation')renderCorrelation(panel,st);
   else if(st.mode==='regression')renderRegression(panel,st);
   else if(st.mode==='mediation')renderMediation(panel,st);
