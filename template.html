@@ -1024,10 +1024,15 @@ function buildExplorerTab(pane,wave){
       var chip=el('button','var-chip');
       chip.style.borderLeftColor=softenColor(cInfo.color)||'#8b98a5';
       var isMC=k.indexOf('__mc__')===0;
-      var label=isMC?k.replace('__mc__','')+'  (set)':getVarLabel(k);
-      chip.textContent=label;
       var vmeta=isMC?null:getVarMeta(k);
-      chip.title=isMC?k:(k+' ['+((vmeta&&vmeta.waves)?vmeta.waves.map(function(w){return 'W'+w;}).join('+'):'?')+']');
+      var wavePrefix='';
+      if(!isMC&&vmeta&&vmeta.waves){
+        if(vmeta.waves.length===1)wavePrefix='[W'+vmeta.waves[0]+'] ';
+        else wavePrefix='[W'+vmeta.waves.join('+W')+'] ';
+      }
+      var label=isMC?k.replace('__mc__','')+'  (set)':(wavePrefix+getVarLabel(k));
+      chip.textContent=label;
+      chip.title=isMC?k:(k+' '+wavePrefix);
       chip.dataset.varkey=k;
       chip.addEventListener('click',function(){
         st.selected=k;
@@ -2128,7 +2133,7 @@ function buildSideBySideTab(pane){
     if(!byC[c.key])return;
     var og=el('optgroup','');og.label=c.label;
     byC[c.key].forEach(function(k){
-      var opt=el('option','',getVarLabel(k));opt.value=k;og.appendChild(opt);
+      var opt=el('option','','[W1+W2] '+getVarLabel(k));opt.value=k;og.appendChild(opt);
     });
     vsel.appendChild(og);
   });
@@ -3324,7 +3329,12 @@ function renderRegression(panel,st){
   }
 
   // In cross-wave mode, label IVs as [W1] and DV as [W2] for clarity
-  function crossLabel(k,src){return getVarLabel(k)+(isCross?' ['+src+']':'');}
+  // Always include wave in variable labels — cross mode uses src arg, same-wave uses current wave
+  var currWave=getAdvWave(st);
+  function crossLabel(k,src){
+    if(isCross)return '[' +src+ '] '+getVarLabel(k);
+    return '[W'+currWave+'] '+getVarLabel(k);
+  }
   var vnames=['(Intercept)'].concat(allVars.map(function(k){return crossLabel(k,'W1');}));
   var result=dvIsBinary?logReg(y,X,vnames):olsReg(y,X,vnames);
   if(result.error){
@@ -3826,14 +3836,15 @@ function renderMediation(panel,st){
     return;
   }
 
-  // Cross-wave mode: label variables with their source wave
+  // Always label with wave — cross mode assigns W1 to X/M and W2 to Y; same-wave uses current wave
   var isCrossMed=st.waveMode==='cross';
+  var currWaveMed=getAdvWave(st);
   function medWL(k,role){
-    // role: 'x','m','y' — cross-wave: X,M are W1, Y is W2
     var lbl=getVarLabel(k);
-    if(!isCrossMed)return lbl;
-    var w=role==='y'?2:1;
-    return lbl+' ['+(w===1?'W1':'W2')+']';
+    var w;
+    if(isCrossMed)w=role==='y'?2:1;
+    else w=currWaveMed;
+    return '[W'+w+'] '+lbl;
   }
   // "What you're testing" summary card
   var xL=medWL(st.medX,'x'),mL=medWL(st.medM,'m'),yL=medWL(st.medY,'y');
@@ -4068,14 +4079,15 @@ function renderModeration(panel,st){
   }
 
   // "What you're testing" summary card
-  // Cross-wave mode: label variables with their source wave
+  // Always label with wave — cross: DV=W2, IV/Mod=W1; same-wave uses current wave
   var isCrossMod=st.waveMode==='cross';
+  var currWaveMod=getAdvWave(st);
   function modWL(k,role){
-    // role: 'dv','iv','mod' — cross-wave: DV is W2, IV and Mod are W1
     var lbl=getVarLabel(k);
-    if(!isCrossMod)return lbl;
-    var w=role==='dv'?2:1;
-    return lbl+' ['+(w===1?'W1':'W2')+']';
+    var w;
+    if(isCrossMod)w=role==='dv'?2:1;
+    else w=currWaveMod;
+    return '[W'+w+'] '+lbl;
   }
   var dvL=modWL(st.modDV,'dv'),ivL=modWL(st.modIV,'iv'),modL=modWL(st.modMod,'mod');
   var testCard=el('div','');
