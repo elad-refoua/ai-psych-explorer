@@ -740,6 +740,11 @@ function getVarLabelWave(key,wave){
   if(Array.isArray(w)&&w[0]===2)return '[W2] '+lbl;
   return lbl;
 }
+// Force wave prefix on a variable label — always prepends [W1] or [W2]
+function labelForWave(key,waveNum){
+  var m=getVarMeta(key);var lbl=m.label||key;
+  return '[W'+waveNum+'] '+lbl;
+}
 // Determine the effective wave for a variable in the current context
 function getVarWave(key,contextWave){
   var m=getVarMeta(key);var w=m.waves;
@@ -2783,9 +2788,11 @@ function renderAdvConfig(area,st){
       addPool(1);
       addPool(2);
     } else {
+      var corWave=getAdvWave(st);
       contVars.forEach(function(k){
-        var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
+        var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),labelForWave(k,corWave));
         chip.title=k;
+        chip.style.borderLeft='3px solid '+getWaveColor(corWave);
         chip.addEventListener('click',function(){
           var idx=st.selVars.indexOf(k);
           if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(k);
@@ -2813,7 +2820,7 @@ function renderAdvConfig(area,st){
     var dvSel=el('select','');
     dvSel.style.borderLeft='4px solid '+getWaveColor(dvWaveN);
     dvSel.appendChild(el('option','','-- Select DV --'));
-    dvVars.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;dvSel.appendChild(o);});
+    dvVars.forEach(function(k){var o=el('option','',labelForWave(k,dvWaveN));o.value=k;dvSel.appendChild(o);});
     dvSel.value=st.dv;
     dvSel.addEventListener('change',function(){st.dv=dvSel.value;renderAdvResults(document.getElementById('adv-results'),st);});
     gDV.appendChild(dvSel);area.appendChild(gDV);
@@ -2833,7 +2840,7 @@ function renderAdvConfig(area,st){
     var ivChips=el('div','iv-chips');
     var ivPool=st.waveMode==='cross'?getContinuousVars(1):contVars;
     ivPool.forEach(function(k){
-      var chip=el('button','iv-chip'+(st.ivs.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
+      var chip=el('button','iv-chip'+(st.ivs.indexOf(k)>=0?' selected':''),labelForWave(k,ivWaveN));
       chip.title=k;
       chip.style.borderLeft='3px solid '+getWaveColor(ivWaveN);
       chip.addEventListener('click',function(){
@@ -2890,7 +2897,7 @@ function renderAdvConfig(area,st){
       if(idx===1){pool=contVars;}
       else if(idx===2&&st.waveMode==='cross'){pool=getAllAnalysisVars(2);}
       else{pool=allVars;}
-      pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
+      pool.forEach(function(k){var o=el('option','',labelForWave(k,wN));o.value=k;sel.appendChild(o);});
       var prop=['medX','medM','medY'][idx];
       sel.value=st[prop]||'';
       sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
@@ -2922,7 +2929,7 @@ function renderAdvConfig(area,st){
       var pool;
       if(idx===0){pool=st.waveMode==='cross'?getContinuousVars(2):contVars;}
       else{pool=st.waveMode==='cross'?getAllAnalysisVars(1):allVars;}
-      pool.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;sel.appendChild(o);});
+      pool.forEach(function(k){var o=el('option','',labelForWave(k,wN));o.value=k;sel.appendChild(o);});
       var prop=['modDV','modIV','modMod'][idx];
       sel.value=st[prop]||'';
       sel.addEventListener('change',function(){st[prop]=sel.value;renderAdvResults(document.getElementById('adv-results'),st);});
