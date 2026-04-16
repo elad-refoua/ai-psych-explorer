@@ -3738,8 +3738,17 @@ function renderMediation(panel,st){
     return;
   }
 
+  // Cross-wave mode: label variables with their source wave
+  var isCrossMed=st.waveMode==='cross';
+  function medWL(k,role){
+    // role: 'x','m','y' — cross-wave: X,M are W1, Y is W2
+    var lbl=getVarLabel(k);
+    if(!isCrossMed)return lbl;
+    var w=role==='y'?2:1;
+    return lbl+' ['+(w===1?'W1':'W2')+']';
+  }
   // "What you're testing" summary card
-  var xL=getVarLabel(st.medX),mL=getVarLabel(st.medM),yL=getVarLabel(st.medY);
+  var xL=medWL(st.medX,'x'),mL=medWL(st.medM,'m'),yL=medWL(st.medY,'y');
   var testCard=el('div','');
   testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
   var testTitle=el('div','');
@@ -3785,7 +3794,8 @@ function renderMediation(panel,st){
   // Top row: X -> M -> Y with a and b paths
   var diagram=el('div','path-diagram');
 
-  var xNode=el('div','path-node',getVarLabel(st.medX));
+  var xNode=el('div','path-node',xL);
+  if(isCrossMed)xNode.style.borderColor=getWaveColor(1);
   diagram.appendChild(xNode);
 
   var aArrow=el('div','path-arrow');
@@ -3795,7 +3805,8 @@ function renderMediation(panel,st){
   var aLine=el('div','line');aArrow.appendChild(aLine);
   diagram.appendChild(aArrow);
 
-  var mNode=el('div','path-node',getVarLabel(st.medM));
+  var mNode=el('div','path-node',mL);
+  if(isCrossMed)mNode.style.borderColor=getWaveColor(1);
   diagram.appendChild(mNode);
 
   var bArrow=el('div','path-arrow');
@@ -3805,7 +3816,8 @@ function renderMediation(panel,st){
   var bLine=el('div','line');bArrow.appendChild(bLine);
   diagram.appendChild(bArrow);
 
-  var yNode=el('div','path-node',getVarLabel(st.medY));
+  var yNode=el('div','path-node',yL);
+  if(isCrossMed)yNode.style.borderColor=getWaveColor(2);
   diagram.appendChild(yNode);
 
   card.appendChild(diagram);
@@ -3815,7 +3827,7 @@ function renderMediation(panel,st){
   bottomRow.style.cssText='display:flex;align-items:center;justify-content:center;gap:18px;padding:8px 0 12px 0;';
   var xTag=el('div','');
   xTag.style.cssText='font-size:11px;color:var(--text-secondary);min-width:80px;text-align:right;';
-  xTag.textContent=getVarLabel(st.medX);
+  xTag.textContent=xL;
   bottomRow.appendChild(xTag);
 
   var arrowWrap=el('div','');
@@ -3848,7 +3860,7 @@ function renderMediation(panel,st){
 
   var yTag=el('div','');
   yTag.style.cssText='font-size:11px;color:var(--text-secondary);min-width:80px;text-align:left;';
-  yTag.textContent=getVarLabel(st.medY);
+  yTag.textContent=yL;
   bottomRow.appendChild(yTag);
 
   card.appendChild(bottomRow);
@@ -3903,7 +3915,7 @@ function renderMediation(panel,st){
   interp.style.background='var(--bg-input)';interp.style.borderRadius='var(--radius-sm)';
   interp.style.color='var(--text-secondary)';
   if(result.sob_p<.05){
-    interp.textContent='Significant mediation: '+getVarLabel(st.medM)+' mediates the relationship between '+getVarLabel(st.medX)+' and '+getVarLabel(st.medY)+' (Sobel Z = '+fmt(result.sob_z)+', p = '+fmtP(result.sob_p)+'), accounting for '+fmt(result.pct,1)+'% of the total effect.';
+    interp.textContent='Significant mediation: '+mL+' mediates the relationship between '+xL+' and '+yL+' (Sobel Z = '+fmt(result.sob_z)+', p = '+fmtP(result.sob_p)+'), accounting for '+fmt(result.pct,1)+'% of the total effect.';
     interp.style.borderLeft='3px solid var(--caution)';
   } else {
     interp.textContent='No significant mediation detected (Sobel Z = '+fmt(result.sob_z)+', p = '+fmtP(result.sob_p)+').';
@@ -3912,7 +3924,7 @@ function renderMediation(panel,st){
   panel.appendChild(card);
 
   // Narrative interpretation
-  var narrativeCard = generateNarrative('mediation', result, { x: getVarLabel(st.medX), m: getVarLabel(st.medM), y: getVarLabel(st.medY) });
+  var narrativeCard = generateNarrative('mediation', result, { x: xL, m: mL, y: yL });
   if (narrativeCard) {
     panel.appendChild(narrativeCard);
     addAIInterpretButton(narrativeCard, 'mediation');
@@ -3968,7 +3980,16 @@ function renderModeration(panel,st){
   }
 
   // "What you're testing" summary card
-  var dvL=getVarLabel(st.modDV),ivL=getVarLabel(st.modIV),modL=getVarLabel(st.modMod);
+  // Cross-wave mode: label variables with their source wave
+  var isCrossMod=st.waveMode==='cross';
+  function modWL(k,role){
+    // role: 'dv','iv','mod' — cross-wave: DV is W2, IV and Mod are W1
+    var lbl=getVarLabel(k);
+    if(!isCrossMod)return lbl;
+    var w=role==='dv'?2:1;
+    return lbl+' ['+(w===1?'W1':'W2')+']';
+  }
+  var dvL=modWL(st.modDV,'dv'),ivL=modWL(st.modIV,'iv'),modL=modWL(st.modMod,'mod');
   var testCard=el('div','');
   testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
   var testTitle=el('div','');
@@ -3997,7 +4018,7 @@ function renderModeration(panel,st){
     var modRes2=result.mod;
     var rows2=[['Term','B','SE','t','p']];
     for(var j=0;j<modRes2.beta.length;j++){
-      rows2.push([(['Intercept',getVarLabel(st.modIV)+' (c)',getVarLabel(st.modMod)+' (c)',getVarLabel(st.modIV)+' x '+getVarLabel(st.modMod)][j]||modRes2.vn[j]),
+      rows2.push([(['Intercept',ivL+' (c)',modL+' (c)',ivL+' x '+modL][j]||modRes2.vn[j]),
         modRes2.beta[j].toFixed(6),modRes2.se[j].toFixed(6),modRes2.t[j].toFixed(6),modRes2.p[j].toFixed(6)]);
     }
     rows2.push([]);
@@ -4052,7 +4073,7 @@ function renderModeration(panel,st){
   intNote.style.borderRadius='var(--radius-sm)';
   if(intP<.05){
     intNote.style.background='rgba(224,208,112,.1)';intNote.style.color='var(--caution)';
-    intNote.textContent='Significant interaction (p = '+fmtP(intP)+'). Simple slopes below show how the effect of '+getVarLabel(st.modIV)+' on '+getVarLabel(st.modDV)+' varies at different levels of '+getVarLabel(st.modMod)+'.';
+    intNote.textContent='Significant interaction (p = '+fmtP(intP)+'). Simple slopes below show how the effect of '+ivL+' on '+dvL+' varies at different levels of '+modL+'.';
   } else {
     intNote.style.background='var(--bg-input)';intNote.style.color='var(--text-secondary)';
     intNote.textContent='Interaction not significant (p = '+fmtP(intP)+'). Simple slopes shown for reference.';
@@ -4128,7 +4149,7 @@ function renderModeration(panel,st){
   slopeNote.style.padding='6px 8px';slopeNote.style.background='var(--bg-input)';slopeNote.style.borderRadius='var(--radius-sm)';
   var sigSlopes=result.slopes.filter(function(s2){return s2.p<.05;});
   if(sigSlopes.length>0){
-    slopeNote.textContent='Significant slopes marked with *. The effect of '+getVarLabel(st.modIV)+' on '+getVarLabel(st.modDV)+' is significant at '+sigSlopes.map(function(s3){return s3.l;}).join(' and ')+' levels of '+getVarLabel(st.modMod)+'.';
+    slopeNote.textContent='Significant slopes marked with *. The effect of '+ivL+' on '+dvL+' is significant at '+sigSlopes.map(function(s3){return s3.l;}).join(' and ')+' levels of '+modL+'.';
     slopeNote.style.borderLeft='3px solid var(--caution)';
   } else {
     slopeNote.textContent='No simple slopes reached significance at p < .05.';
@@ -4142,7 +4163,7 @@ function renderModeration(panel,st){
   plotCard.appendChild(el('div','card-title','Interaction Plot'));
   var subNote=el('div','');
   subNote.style.cssText='font-size:11px;color:var(--text-muted);margin-bottom:8px;';
-  subNote.textContent='Predicted '+getVarLabel(st.modDV)+' as '+getVarLabel(st.modIV)+' varies, at '+(modIsBinary?getVarLabel(st.modMod)+'=0 vs '+getVarLabel(st.modMod)+'=1':'-1SD / Mean / +1SD levels of '+getVarLabel(st.modMod))+'. Raw observations shown as dots.';
+  subNote.textContent='Predicted '+dvL+' as '+ivL+' varies, at '+(modIsBinary?modL+'=0 vs '+modL+'=1':'-1SD / Mean / +1SD levels of '+modL)+'. Raw observations shown as dots.';
   plotCard.appendChild(subNote);
 
   var canvas=document.createElement('canvas');
@@ -4168,12 +4189,12 @@ function renderModeration(panel,st){
   // Line levels: binary moderator -> 0,1; continuous -> -1SD, Mean, +1SD
   var modLevels;
   if(modIsBinary){
-    modLevels=[{label:getVarLabel(st.modMod)+'=0',val:0,color:'#5ba8e0'},{label:getVarLabel(st.modMod)+'=1',val:1,color:'#e8a060'}];
+    modLevels=[{label:modL+'=0',val:0,color:'#5ba8e0'},{label:modL+'=1',val:1,color:'#e8a060'}];
   } else {
     modLevels=[
-      {label:'-1SD '+getVarLabel(st.modMod),val:mMean-mSD,color:'#5ba8e0'},
-      {label:'Mean '+getVarLabel(st.modMod),val:mMean,color:'#8b98a5'},
-      {label:'+1SD '+getVarLabel(st.modMod),val:mMean+mSD,color:'#e8a060'}
+      {label:'-1SD '+modL,val:mMean-mSD,color:'#5ba8e0'},
+      {label:'Mean '+modL,val:mMean,color:'#8b98a5'},
+      {label:'+1SD '+modL,val:mMean+mSD,color:'#e8a060'}
     ];
   }
 
@@ -4230,10 +4251,10 @@ function renderModeration(panel,st){
   // Axis labels
   ctx.fillStyle='#8b98a5';ctx.font='11px system-ui,sans-serif';
   ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.fillText(getVarLabel(st.modIV),padL+plotW/2,H-4);
+  ctx.fillText(ivL,padL+plotW/2,H-4);
   ctx.save();ctx.translate(14,padT+plotH/2);ctx.rotate(-Math.PI/2);
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('Predicted '+getVarLabel(st.modDV),0,0);
+  ctx.fillText('Predicted '+dvL,0,0);
   ctx.restore();
 
   // Scatter (raw data)
@@ -4274,7 +4295,7 @@ function renderModeration(panel,st){
   panel.appendChild(plotCard);
 
   // Narrative interpretation
-  var narrativeCard = generateNarrative('moderation', result, { dv: getVarLabel(st.modDV), iv: getVarLabel(st.modIV), mod: getVarLabel(st.modMod) });
+  var narrativeCard = generateNarrative('moderation', result, { dv: dvL, iv: ivL, mod: modL });
   if (narrativeCard) {
     panel.appendChild(narrativeCard);
     addAIInterpretButton(narrativeCard, 'moderation');
