@@ -726,15 +726,40 @@ function getVarLabel(key){var m=getVarMeta(key);return m.label||key;}
 function getVarLabelWave(key,wave){
   var m=getVarMeta(key);var lbl=m.label||key;
   var w=m.waves;
+  // Always show [W1] or [W2] badge — clarity first
   if(wave==='cross'){
-    // In cross-wave mode, show W1/W2 badge
-    if(Array.isArray(w)&&w.length===1)return lbl+(w[0]===1?' [W1]':' [W2]');
+    if(Array.isArray(w)&&w.length===1)return (w[0]===1?'[W1] ':'[W2] ')+lbl;
+    if(Array.isArray(w)&&w.length===2)return '[W1+W2] '+lbl;
     return lbl;
   }
-  if(Array.isArray(w)&&w.length===2)return lbl;
-  if(Array.isArray(w)&&w[0]===1)return lbl+' [W1]';
-  if(Array.isArray(w)&&w[0]===2)return lbl+' [W2]';
+  if(wave==='w1'||wave===1)return '[W1] '+lbl;
+  if(wave==='w2'||wave===2)return '[W2] '+lbl;
+  if(Array.isArray(w)&&w.length===2)return '[W1+W2] '+lbl;
+  if(Array.isArray(w)&&w[0]===1)return '[W1] '+lbl;
+  if(Array.isArray(w)&&w[0]===2)return '[W2] '+lbl;
   return lbl;
+}
+// Determine the effective wave for a variable in the current context
+function getVarWave(key,contextWave){
+  var m=getVarMeta(key);var w=m.waves;
+  if(contextWave==='cross'){
+    if(Array.isArray(w)&&w.length===1)return w[0];
+    return 'both';
+  }
+  if(contextWave==='w1'||contextWave===1)return 1;
+  if(contextWave==='w2'||contextWave===2)return 2;
+  return (Array.isArray(w)&&w.length===1)?w[0]:'both';
+}
+// Color for wave: W1 = soft blue, W2 = soft amber
+function getWaveColor(w){
+  if(w===1)return '#5ba8e0';
+  if(w===2)return '#e8a060';
+  return '#b8a0e0';
+}
+function getWaveBg(w){
+  if(w===1)return 'rgba(91,168,224,.12)';
+  if(w===2)return 'rgba(232,160,96,.12)';
+  return 'rgba(184,160,224,.12)';
 }
 // Map saturated construct colors from JSON to soft palette
 var SOFT_COLOR_MAP={
@@ -2618,12 +2643,26 @@ function renderAdvConfig(area,st){
   var contVars=getContinuousVars(st.waveMode==='cross'?1:wave);
   var allVars=getAllAnalysisVars(st.waveMode==='cross'?1:wave);
   var dvVars=st.waveMode==='cross'?getAllAnalysisVars(2):allVars;
-  // Wave context banner
+  // Wave context banner — PROMINENT with wave color
   var wBanner=el('div','');
-  wBanner.style.cssText='background:rgba(91,168,224,.08);border:1px solid rgba(91,168,224,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--accent);';
-  if(st.waveMode==='w1')wBanner.textContent='Wave 1 (N='+DATA.meta.w1_n+') \u2014 All variables from the first survey (Nov 2025)';
-  else if(st.waveMode==='w2')wBanner.textContent='Wave 2 (N='+DATA.meta.w2_n+') \u2014 Follow-up survey (Mar 2026), includes war context and change scores';
-  else wBanner.textContent='Cross-wave \u2014 Predictors from W1 (N='+DATA.meta.w1_n+'), Outcomes from W2 (N='+DATA.meta.w2_n+')';
+  var bColor, bBg, bTitle, bSub;
+  if(st.waveMode==='w1'){
+    bColor='#5ba8e0';bBg='rgba(91,168,224,.12)';
+    bTitle='\uD83D\uDCC5 WAVE 1 ANALYSIS \u2014 Cross-sectional (Nov 2025)';
+    bSub='All variables selected below are from Wave 1. N = '+DATA.meta.w1_n;
+  } else if(st.waveMode==='w2'){
+    bColor='#e8a060';bBg='rgba(232,160,96,.12)';
+    bTitle='\uD83D\uDCC5 WAVE 2 ANALYSIS \u2014 Cross-sectional (Mar 2026)';
+    bSub='All variables selected below are from Wave 2. Includes war context + change scores. N = '+DATA.meta.w2_n;
+  } else {
+    bColor='#b8a0e0';bBg='rgba(184,160,224,.12)';
+    bTitle='\uD83D\uDD04 CROSS-WAVE (PROSPECTIVE) \u2014 W1 predicting W2 (5 months apart)';
+    bSub='Predictors from Wave 1 (Nov 2025) predict outcomes in Wave 2 (Mar 2026). Matched N = '+DATA.meta.w2_n;
+  }
+  wBanner.style.cssText='background:'+bBg+';border:1px solid '+bColor+';border-left:4px solid '+bColor+';border-radius:8px;padding:10px 14px;margin-bottom:10px;';
+  var wTit=el('div','');wTit.style.cssText='font-weight:700;color:'+bColor+';font-size:13px;margin-bottom:3px;';wTit.textContent=bTitle;
+  var wSubEl=el('div','');wSubEl.style.cssText='color:var(--text-secondary);font-size:11px;';wSubEl.textContent=bSub;
+  wBanner.appendChild(wTit);wBanner.appendChild(wSubEl);
   area.appendChild(wBanner);
 
   // Combined collapsible "About this analysis" panel (method + how to read)
@@ -2758,24 +2797,44 @@ function renderAdvConfig(area,st){
     g.appendChild(chips);area.appendChild(g);
 
   } else if(st.mode==='regression'){
+    var dvWaveLbl=st.waveMode==='cross'?'Wave 2 outcome':(st.waveMode==='w1'?'Wave 1 outcome':'Wave 2 outcome');
+    var dvWaveN=st.waveMode==='cross'||st.waveMode==='w2'?2:1;
     var gDV=el('div','config-group');
-    gDV.appendChild(el('label','','Dependent Variable (DV) — what you want to predict'));
+    var dvLabel=el('label','');
+    var dvLabelText=document.createElement('span');dvLabelText.textContent='Dependent Variable (DV) — what you want to predict ';
+    dvLabel.appendChild(dvLabelText);
+    var dvBadge=document.createElement('span');
+    dvBadge.style.cssText='background:'+getWaveBg(dvWaveN)+';color:'+getWaveColor(dvWaveN)+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.3px;';
+    dvBadge.textContent=dvWaveLbl.toUpperCase();
+    dvLabel.appendChild(dvBadge);
+    gDV.appendChild(dvLabel);
     gDV.appendChild(hint('The outcome. If binary (e.g., AI_MH), logistic regression runs automatically. If continuous (e.g., DASS_Total), linear regression runs.'));
     var dvSel=el('select','');
+    dvSel.style.borderLeft='4px solid '+getWaveColor(dvWaveN);
     dvSel.appendChild(el('option','','-- Select DV --'));
     dvVars.forEach(function(k){var o=el('option','',getVarLabelWave(k,st.waveMode));o.value=k;dvSel.appendChild(o);});
     dvSel.value=st.dv;
     dvSel.addEventListener('change',function(){st.dv=dvSel.value;renderAdvResults(document.getElementById('adv-results'),st);});
     gDV.appendChild(dvSel);area.appendChild(gDV);
 
+    var ivWaveN=st.waveMode==='cross'||st.waveMode==='w1'?1:2;
+    var ivWaveLbl=st.waveMode==='cross'?'Wave 1 predictors':(st.waveMode==='w1'?'Wave 1 predictors':'Wave 2 predictors');
     var gIV=el('div','config-group');
-    gIV.appendChild(el('label','','Independent Variables (IVs) — predictors'));
+    var ivLabel=el('label','');
+    var ivLabelText=document.createElement('span');ivLabelText.textContent='Independent Variables (IVs) — predictors ';
+    ivLabel.appendChild(ivLabelText);
+    var ivBadge=document.createElement('span');
+    ivBadge.style.cssText='background:'+getWaveBg(ivWaveN)+';color:'+getWaveColor(ivWaveN)+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.3px;';
+    ivBadge.textContent=ivWaveLbl.toUpperCase();
+    ivLabel.appendChild(ivBadge);
+    gIV.appendChild(ivLabel);
     gIV.appendChild(hint('One or more variables that might predict the DV. Each coefficient shows the unique effect controlling for all others.'));
     var ivChips=el('div','iv-chips');
     var ivPool=st.waveMode==='cross'?getContinuousVars(1):contVars;
     ivPool.forEach(function(k){
       var chip=el('button','iv-chip'+(st.ivs.indexOf(k)>=0?' selected':''),getVarLabelWave(k,st.waveMode));
       chip.title=k;
+      chip.style.borderLeft='3px solid '+getWaveColor(ivWaveN);
       chip.addEventListener('click',function(){
         var idx=st.ivs.indexOf(k);if(idx>=0)st.ivs.splice(idx,1);else st.ivs.push(k);
         chip.classList.toggle('selected');
@@ -2805,6 +2864,8 @@ function renderAdvConfig(area,st){
     area.appendChild(gH);
 
   } else if(st.mode==='mediation'){
+    // Wave assignment per role
+    var medWaves=st.waveMode==='cross'?[1,1,2]:[getAdvWave(st),getAdvWave(st),getAdvWave(st)];
     var medLabels=[
       {lbl:'X — Predictor (cause)',hint:'The starting variable. Can be binary (0/1), ordinal, or continuous.'},
       {lbl:'M — Mediator (mechanism)',hint:'The intermediate variable that transmits X\'s effect to Y. Must be continuous or ordinal.'},
@@ -2812,11 +2873,18 @@ function renderAdvConfig(area,st){
     ];
     medLabels.forEach(function(info,idx){
       var g=el('div','config-group');
-      g.appendChild(el('label','',info.lbl));
+      var lab=el('label','');
+      var labText=document.createElement('span');labText.textContent=info.lbl+' ';lab.appendChild(labText);
+      var wN=medWaves[idx];
+      var wBadge=document.createElement('span');
+      wBadge.style.cssText='background:'+getWaveBg(wN)+';color:'+getWaveColor(wN)+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;';
+      wBadge.textContent='WAVE '+wN;
+      lab.appendChild(wBadge);
+      g.appendChild(lab);
       g.appendChild(hint(info.hint));
       var sel=el('select','');
+      sel.style.borderLeft='4px solid '+getWaveColor(wN);
       sel.appendChild(el('option','','-- Select --'));
-      // X and Y can be binary; M must be continuous/ordinal
       var pool;
       if(idx===1){pool=contVars;}
       else if(idx===2&&st.waveMode==='cross'){pool=getAllAnalysisVars(2);}
@@ -2829,6 +2897,8 @@ function renderAdvConfig(area,st){
     });
 
   } else if(st.mode==='moderation'){
+    // Wave assignment per role
+    var modWaves=st.waveMode==='cross'?[2,1,1]:[getAdvWave(st),getAdvWave(st),getAdvWave(st)];
     var modLabels=[
       {lbl:'DV — Outcome',hint:'The variable being predicted. Must be continuous or ordinal.'},
       {lbl:'IV — Predictor',hint:'The main effect whose relationship to DV you want to understand.'},
@@ -2836,11 +2906,18 @@ function renderAdvConfig(area,st){
     ];
     modLabels.forEach(function(info,idx){
       var g=el('div','config-group');
-      g.appendChild(el('label','',info.lbl));
+      var lab=el('label','');
+      var labText=document.createElement('span');labText.textContent=info.lbl+' ';lab.appendChild(labText);
+      var wN=modWaves[idx];
+      var wBadge=document.createElement('span');
+      wBadge.style.cssText='background:'+getWaveBg(wN)+';color:'+getWaveColor(wN)+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;';
+      wBadge.textContent='WAVE '+wN;
+      lab.appendChild(wBadge);
+      g.appendChild(lab);
       g.appendChild(hint(info.hint));
       var sel=el('select','');
+      sel.style.borderLeft='4px solid '+getWaveColor(wN);
       sel.appendChild(el('option','','-- Select --'));
-      // DV must be continuous/ordinal; IV and Moderator can also be binary
       var pool;
       if(idx===0){pool=st.waveMode==='cross'?getContinuousVars(2):contVars;}
       else{pool=st.waveMode==='cross'?getAllAnalysisVars(1):allVars;}
