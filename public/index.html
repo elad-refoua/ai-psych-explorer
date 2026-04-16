@@ -139,10 +139,10 @@ background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
 .config-group{display:flex;flex-direction:column;gap:4px;}
 .config-group label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .config-group select{font-size:12px;min-width:160px;}
-.iv-chips{display:flex;flex-wrap:wrap;gap:4px;max-width:400px;}
-.iv-chip{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;}
+.iv-chips{display:flex;flex-wrap:wrap;gap:6px;max-width:400px;}
+.iv-chip{font-size:11px;padding:4px 10px;border-radius:10px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;font-weight:500;}
 .iv-chip:hover{border-color:var(--accent);color:var(--text-primary);}
-.iv-chip.selected{border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.1);}
+.iv-chip.selected{border-width:2px;border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.15);font-weight:700;box-shadow:0 0 0 2px rgba(91,168,224,.15);}
 
 /* Transition panels */
 .trans-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -2953,6 +2953,85 @@ function buildResultsHelpBanner(mode){
   return box;
 }
 
+// Build a BIG prominent "Your Model" card showing every variable with its wave color
+function buildSelectionSummary(st){
+  var box=el('div','');
+  box.style.cssText='background:linear-gradient(135deg,rgba(91,168,224,.08),rgba(232,160,96,.08));border:2px solid rgba(184,160,224,.3);border-radius:12px;padding:16px 20px;margin-bottom:14px;';
+  var title=el('div','');
+  title.style.cssText='font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;';
+  title.textContent='YOUR MODEL \u2014 which variable comes from which wave';
+  box.appendChild(title);
+  function makeVarRow(role,varKey,waveN,roleColor){
+    if(!varKey)return null;
+    var row=el('div','');
+    row.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:8px 12px;background:'+getWaveBg(waveN)+';border-left:5px solid '+getWaveColor(waveN)+';border-radius:6px;';
+    // Role badge
+    var roleBadge=el('div','');
+    roleBadge.style.cssText='min-width:110px;font-size:10px;font-weight:700;color:'+(roleColor||'var(--text-secondary)')+';text-transform:uppercase;letter-spacing:.5px;';
+    roleBadge.textContent=role;
+    row.appendChild(roleBadge);
+    // Wave pill
+    var wavePill=el('div','');
+    wavePill.style.cssText='min-width:52px;padding:4px 10px;background:'+getWaveColor(waveN)+';color:#0f1419;border-radius:12px;font-size:11px;font-weight:800;text-align:center;';
+    wavePill.textContent='W'+waveN;
+    row.appendChild(wavePill);
+    // Variable name
+    var name=el('div','');
+    name.style.cssText='flex:1;font-size:14px;font-weight:600;color:var(--text-primary);';
+    name.textContent=getVarLabel(varKey);
+    row.appendChild(name);
+    // Source hint
+    var src=el('div','');
+    src.style.cssText='font-size:10px;color:var(--text-muted);font-style:italic;';
+    src.textContent=waveN===1?'Nov 2025':'Mar 2026';
+    row.appendChild(src);
+    return row;
+  }
+  if(st.mode==='correlation'){
+    if(!st.selVars||st.selVars.length===0)return null;
+    var isCross=st.waveMode==='cross';
+    st.selVars.forEach(function(v,i){
+      var k=v,wN;
+      if(isCross&&v.indexOf('w1:')===0){k=v.substring(3);wN=1;}
+      else if(isCross&&v.indexOf('w2:')===0){k=v.substring(3);wN=2;}
+      else {wN=getAdvWave(st);}
+      var row=makeVarRow('Variable '+(i+1),k,wN,'var(--accent)');
+      if(row)box.appendChild(row);
+    });
+  } else if(st.mode==='regression'){
+    var dvWaveN=st.waveMode==='cross'||st.waveMode==='w2'?2:1;
+    var ivWaveN=st.waveMode==='cross'||st.waveMode==='w1'?1:2;
+    var dvRow=makeVarRow('Outcome (DV)',st.dv,dvWaveN,getWaveColor(dvWaveN));
+    if(dvRow)box.appendChild(dvRow);
+    (st.ivs||[]).forEach(function(iv,i){
+      var r=makeVarRow('Predictor '+(i+1),iv,ivWaveN,getWaveColor(ivWaveN));
+      if(r)box.appendChild(r);
+    });
+  } else if(st.mode==='mediation'){
+    var xW=st.waveMode==='cross'?1:getAdvWave(st);
+    var mW=st.waveMode==='cross'?1:getAdvWave(st);
+    var yW=st.waveMode==='cross'?2:getAdvWave(st);
+    var rX=makeVarRow('X \u2014 Predictor',st.medX,xW,getWaveColor(xW));if(rX)box.appendChild(rX);
+    var rM=makeVarRow('M \u2014 Mediator',st.medM,mW,getWaveColor(mW));if(rM)box.appendChild(rM);
+    var rY=makeVarRow('Y \u2014 Outcome',st.medY,yW,getWaveColor(yW));if(rY)box.appendChild(rY);
+  } else if(st.mode==='moderation'){
+    var dvW=st.waveMode==='cross'?2:getAdvWave(st);
+    var ivW=st.waveMode==='cross'?1:getAdvWave(st);
+    var mW2=st.waveMode==='cross'?1:getAdvWave(st);
+    var rDV=makeVarRow('DV \u2014 Outcome',st.modDV,dvW,getWaveColor(dvW));if(rDV)box.appendChild(rDV);
+    var rIV=makeVarRow('IV \u2014 Predictor',st.modIV,ivW,getWaveColor(ivW));if(rIV)box.appendChild(rIV);
+    var rMod=makeVarRow('Moderator',st.modMod,mW2,getWaveColor(mW2));if(rMod)box.appendChild(rMod);
+  }
+  // Cross-wave note
+  if(st.waveMode==='cross'){
+    var note=el('div','');
+    note.style.cssText='margin-top:10px;padding:8px 12px;background:rgba(184,160,224,.15);border-radius:6px;font-size:11px;color:var(--purple);font-weight:600;';
+    note.textContent='\uD83D\uDD04 CROSS-WAVE ANALYSIS: W1 predictors (Nov 2025) explain W2 outcomes (Mar 2026), 5 months apart';
+    box.appendChild(note);
+  }
+  return box;
+}
+
 function renderAdvResults(panel,st){
   clearEl(panel);
   updateAdvStepBar(st);
@@ -2972,7 +3051,9 @@ function renderAdvResults(panel,st){
   // Hide research question cards when showing results
   var rqContainer=document.getElementById('adv-rq-area');
   if(rqContainer)rqContainer.style.display='none';
-  // Note: method + how-to-read panel is now in the config area (collapsible)
+  // BIG prominent "Your Model" selection summary — shows each var with its wave
+  var selSummary=buildSelectionSummary(st);
+  if(selSummary)panel.appendChild(selSummary);
   if(st.mode==='correlation')renderCorrelation(panel,st);
   else if(st.mode==='regression')renderRegression(panel,st);
   else if(st.mode==='mediation')renderMediation(panel,st);
