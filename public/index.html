@@ -140,6 +140,19 @@ background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
 .config-group label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .config-group select{font-size:12px;min-width:160px;}
 .iv-chips{display:flex;flex-wrap:wrap;gap:6px;max-width:400px;}
+/* Compact multi-select dropdown (variable picker) */
+.multisel{position:relative;display:inline-block;min-width:220px;}
+.multisel-btn{width:100%;padding:6px 28px 6px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:12px;cursor:pointer;text-align:left;min-height:32px;position:relative;}
+.multisel-btn:hover{border-color:var(--accent);}
+.multisel-btn::after{content:'\25BC';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--text-muted);}
+.multisel-btn.has-selected{border-color:var(--accent);}
+.multisel-menu{display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px;max-height:280px;overflow-y:auto;z-index:100;min-width:260px;}
+.multisel-menu.open{display:block;}
+.multisel-item{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;color:var(--text-primary);cursor:pointer;border-bottom:1px solid rgba(47,53,66,.4);}
+.multisel-item:hover{background:rgba(91,168,224,.08);}
+.multisel-item.selected{background:rgba(91,168,224,.15);font-weight:600;}
+.multisel-item input[type=checkbox]{margin:0;cursor:pointer;accent-color:var(--accent);}
+.multisel-summary{font-size:11px;color:var(--text-secondary);padding:2px 4px;}
 .iv-chip{font-size:11px;padding:4px 10px;border-radius:10px;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all .15s;font-weight:500;}
 .iv-chip:hover{border-color:var(--accent);color:var(--text-primary);}
 .iv-chip.selected{border-width:2px;border-color:var(--accent);color:var(--accent);background:rgba(91,168,224,.15);font-weight:700;box-shadow:0 0 0 2px rgba(91,168,224,.15);}
@@ -744,6 +757,43 @@ function getVarLabelWave(key,wave){
 function labelForWave(key,waveNum){
   var m=getVarMeta(key);var lbl=m.label||key;
   return '[W'+waveNum+'] '+lbl;
+}
+
+// Build a compact multi-select dropdown widget
+// items: array of {key, label}, selected: Set/array of keys, onToggle: fn(key)
+function buildMultiSelect(items,selectedArr,onToggle,placeholder,borderColor){
+  var wrap=el('div','multisel');
+  var btn=el('button','multisel-btn',placeholder||'Select variables...');
+  btn.type='button';
+  if(borderColor)btn.style.borderLeft='3px solid '+borderColor;
+  function updateBtnText(){
+    var n=selectedArr.length;
+    if(n===0){btn.textContent=placeholder||'Select variables...';btn.classList.remove('has-selected');}
+    else{btn.textContent=n+' selected';btn.classList.add('has-selected');}
+  }
+  updateBtnText();
+  var menu=el('div','multisel-menu');
+  items.forEach(function(it){
+    var row=el('div','multisel-item'+(selectedArr.indexOf(it.key)>=0?' selected':''));
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=selectedArr.indexOf(it.key)>=0;
+    var lbl=document.createElement('span');lbl.textContent=it.label;
+    row.appendChild(cb);row.appendChild(lbl);
+    row.addEventListener('click',function(e){e.stopPropagation();
+      cb.checked=!cb.checked;row.classList.toggle('selected',cb.checked);
+      onToggle(it.key,cb.checked);updateBtnText();
+    });
+    menu.appendChild(row);
+  });
+  btn.addEventListener('click',function(e){e.stopPropagation();
+    // Close all other open menus
+    document.querySelectorAll('.multisel-menu.open').forEach(function(m){if(m!==menu)m.classList.remove('open');});
+    menu.classList.toggle('open');
+  });
+  document.addEventListener('click',function(e){
+    if(!wrap.contains(e.target))menu.classList.remove('open');
+  });
+  wrap.appendChild(btn);wrap.appendChild(menu);
+  return wrap;
 }
 // Determine the effective wave for a variable in the current context
 function getVarWave(key,contextWave){
@@ -2766,48 +2816,34 @@ function renderAdvConfig(area,st){
     var g=el('div','config-group');
     g.appendChild(el('label','','Select 2+ continuous variables'));
     if(st.waveMode==='cross'){
-      g.appendChild(hint('Cross-wave correlation: select variables from either wave. Each variable is labeled [W1] or [W2]. Pairs are computed across matched participants.'));
-    } else {
-      g.appendChild(hint('Click any chip to add/remove from the correlation matrix. Each pair will be tested with Pearson r.'));
-    }
-    var chips=el('div','iv-chips');
-    if(st.waveMode==='cross'){
-      // Show variables from BOTH waves with prefixed keys and [W1]/[W2] badges
-      function addPool(waveNum){
-        var pool=getContinuousVars(waveNum);
-        pool.forEach(function(k){
-          var prefKey='w'+waveNum+':'+k;
-          var lbl=getVarLabel(k)+' ['+(waveNum===1?'W1':'W2')+']';
-          var chip=el('button','iv-chip'+(st.selVars.indexOf(prefKey)>=0?' selected':''),lbl);
-          chip.title=prefKey;
-          chip.style.borderLeft='3px solid '+(waveNum===1?'#5ba8e0':'#e8a060');
-          chip.addEventListener('click',function(){
-            var idx=st.selVars.indexOf(prefKey);
-            if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(prefKey);
-            chip.classList.toggle('selected');
-            renderAdvResults(document.getElementById('adv-results'),st);
-          });
-          chips.appendChild(chip);
+      g.appendChild(hint('Cross-wave correlation: pick from both waves. Each variable is labeled [W1] or [W2].'));
+      // Build items from both waves with prefixed keys
+      var corItems=[];
+      [1,2].forEach(function(wn){
+        getContinuousVars(wn).forEach(function(k){
+          corItems.push({key:'w'+wn+':'+k,label:'[W'+wn+'] '+getVarLabel(k)});
         });
-      }
-      addPool(1);
-      addPool(2);
-    } else {
-      var corWave=getAdvWave(st);
-      contVars.forEach(function(k){
-        var chip=el('button','iv-chip'+(st.selVars.indexOf(k)>=0?' selected':''),labelForWave(k,corWave));
-        chip.title=k;
-        chip.style.borderLeft='3px solid '+getWaveColor(corWave);
-        chip.addEventListener('click',function(){
-          var idx=st.selVars.indexOf(k);
-          if(idx>=0)st.selVars.splice(idx,1);else st.selVars.push(k);
-          chip.classList.toggle('selected');
-          renderAdvResults(document.getElementById('adv-results'),st);
-        });
-        chips.appendChild(chip);
       });
+      var corPicker=buildMultiSelect(corItems,st.selVars,function(k,checked){
+        var idx=st.selVars.indexOf(k);
+        if(checked&&idx<0)st.selVars.push(k);
+        else if(!checked&&idx>=0)st.selVars.splice(idx,1);
+        renderAdvResults(document.getElementById('adv-results'),st);
+      },'Pick 2+ variables...',getWaveColor('both'));
+      g.appendChild(corPicker);
+    } else {
+      g.appendChild(hint('Pick 2+ variables to compute pairwise Pearson correlations.'));
+      var corWave=getAdvWave(st);
+      var corItems2=contVars.map(function(k){return{key:k,label:labelForWave(k,corWave)};});
+      var corPicker2=buildMultiSelect(corItems2,st.selVars,function(k,checked){
+        var idx=st.selVars.indexOf(k);
+        if(checked&&idx<0)st.selVars.push(k);
+        else if(!checked&&idx>=0)st.selVars.splice(idx,1);
+        renderAdvResults(document.getElementById('adv-results'),st);
+      },'Pick 2+ variables...',getWaveColor(corWave));
+      g.appendChild(corPicker2);
     }
-    g.appendChild(chips);area.appendChild(g);
+    area.appendChild(g);
 
   } else if(st.mode==='regression'){
     var dvWaveLbl=st.waveMode==='cross'?'Wave 2 outcome':(st.waveMode==='w1'?'Wave 1 outcome':'Wave 2 outcome');
@@ -2842,20 +2878,15 @@ function renderAdvConfig(area,st){
     ivLabel.appendChild(ivBadge);
     gIV.appendChild(ivLabel);
     gIV.appendChild(hint('One or more variables that might predict the DV. Each coefficient shows the unique effect controlling for all others.'));
-    var ivChips=el('div','iv-chips');
     var ivPool=st.waveMode==='cross'?getContinuousVars(1):contVars;
-    ivPool.forEach(function(k){
-      var chip=el('button','iv-chip'+(st.ivs.indexOf(k)>=0?' selected':''),labelForWave(k,ivWaveN));
-      chip.title=k;
-      chip.style.borderLeft='3px solid '+getWaveColor(ivWaveN);
-      chip.addEventListener('click',function(){
-        var idx=st.ivs.indexOf(k);if(idx>=0)st.ivs.splice(idx,1);else st.ivs.push(k);
-        chip.classList.toggle('selected');
-        renderAdvResults(document.getElementById('adv-results'),st);
-      });
-      ivChips.appendChild(chip);
-    });
-    gIV.appendChild(ivChips);area.appendChild(gIV);
+    var ivItems=ivPool.map(function(k){return{key:k,label:labelForWave(k,ivWaveN)};});
+    var ivPicker=buildMultiSelect(ivItems,st.ivs,function(k,checked){
+      var idx=st.ivs.indexOf(k);
+      if(checked&&idx<0)st.ivs.push(k);
+      else if(!checked&&idx>=0)st.ivs.splice(idx,1);
+      renderAdvResults(document.getElementById('adv-results'),st);
+    },'Pick predictors...',getWaveColor(ivWaveN));
+    gIV.appendChild(ivPicker);area.appendChild(gIV);
 
     // Hierarchical (null model) toggle — Model 1: Age+Gender only, Model 2: + selected IVs
     var gH=el('div','config-group');
