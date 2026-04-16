@@ -317,12 +317,17 @@ bz=1/bz;var h=bz;for(var m=1;m<=200;m++){var em=m,d=em*(b-m)*x/((qam+2*em)*(a+2*
 var ap=az+d*am,bp=bz+d*bm;d=-(a+em)*(qab+em)*x/((a+2*em)*(qap+2*em));
 var app=ap+d*az,bpp=bp+d*bz;var old=az;am=ap/bpp;bm=bp/bpp;az=app/bpp;bz=1;
 if(Math.abs(az-old)<3e-7*Math.abs(az))return az;}return az;}
-function tCDF(t,df){var x=df/(df+t*t);var a2=df/2,b2=0.5;
-var bt=Math.exp(lnG(a2+b2)-lnG(a2)-lnG(b2)+a2*Math.log(x)+b2*Math.log(1-x));
-var r=bt*betaCF(x,a2,b2)/a2;return t>=0?1-0.5*r:0.5*r;}
+function betaInc(a,b,x){
+  // Regularized incomplete beta I(a,b,x); uses symmetry when x is above CF convergence region
+  if(x<=0)return 0;if(x>=1)return 1;
+  var bt=Math.exp(lnG(a+b)-lnG(a)-lnG(b)+a*Math.log(x)+b*Math.log(1-x));
+  if(x<(a+1)/(a+b+2))return bt*betaCF(x,a,b)/a;
+  return 1-bt*betaCF(1-x,b,a)/b;
+}
+function tCDF(t,df){if(df<=0)return NaN;var x=df/(df+t*t);
+var r=betaInc(df/2,0.5,x);return t>=0?1-0.5*r:0.5*r;}
 function fCDF(f,d1,d2){if(f<=0)return 0;var x=d2/(d2+d1*f);
-var bt=Math.exp(lnG((d1+d2)/2)-lnG(d1/2)-lnG(d2/2)+(d2/2)*Math.log(x)+(d1/2)*Math.log(1-x));
-return 1-bt*betaCF(x,d2/2,d1/2)/(d2/2);}
+return 1-betaInc(d2/2,d1/2,x);}
 function normCDF(z){return normalCDF(z);}
 
 function welchT(m1,s1,n1,m2,s2,n2){if(!n1||!n2||n1<2||n2<2)return{t:NaN,df:NaN,p:NaN};
@@ -2631,6 +2636,23 @@ function renderCorrelation(panel,st){
     }
   }
 
+  // "What you're testing" summary card
+  var varLabels=vars.map(function(v){return getVarLabel(v);});
+  var testCard=el('div','');
+  testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
+  var testTitle=el('div','');
+  testTitle.style.cssText='font-weight:600;color:var(--accent);margin-bottom:6px;';
+  testTitle.textContent='What you are testing';
+  testCard.appendChild(testTitle);
+  var testQ=el('div','');
+  testQ.textContent='How strongly are these '+nv+' variables linearly associated with each other?';
+  testCard.appendChild(testQ);
+  var testDetail=el('div','');
+  testDetail.style.cssText='color:var(--text-secondary);font-size:12px;margin-top:6px;';
+  testDetail.textContent='Variables: '+varLabels.join(', ')+' \u2022 '+(nv*(nv-1)/2)+' pairwise correlations';
+  testCard.appendChild(testDetail);
+  panel.appendChild(testCard);
+
   // Heatmap
   var card=el('div','card');
   card.appendChild(el('div','card-title','Correlation Matrix'));
@@ -2793,9 +2815,27 @@ function renderRegression(panel,st){
     return;
   }
 
+  // "What you're testing" summary card
+  var dvL=getVarLabel(st.dv);
+  var ivLabels=st.ivs.map(function(k){return getVarLabel(k);});
+  var testCard=el('div','');
+  testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
+  var testTitle=el('div','');
+  testTitle.style.cssText='font-weight:600;color:var(--accent);margin-bottom:6px;';
+  testTitle.textContent='What you are testing';
+  testCard.appendChild(testTitle);
+  var testQ=el('div','');
+  testQ.textContent='Do '+ivLabels.join(', ')+' predict '+dvL+'?';
+  testCard.appendChild(testQ);
+  var testDetail=el('div','');
+  testDetail.style.cssText='color:var(--text-secondary);font-size:12px;margin-top:6px;';
+  testDetail.textContent='Outcome (DV): '+dvL+(dvIsBinary?' [binary \u2014 logistic regression]':' [continuous \u2014 linear regression]')+' \u2022 '+st.ivs.length+' predictor'+(st.ivs.length>1?'s':'')+' \u2022 N = '+result.n;
+  testCard.appendChild(testDetail);
+  panel.appendChild(testCard);
+
   // Model summary
   var sumCard=el('div','card');
-  var tit=el('div','card-title',(dvIsBinary?'Logistic':'Linear')+' Regression');
+  var tit=el('div','card-title',(dvIsBinary?'Logistic':'Linear')+' Regression Results');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
   sumCard.appendChild(tit);
 
@@ -2919,9 +2959,26 @@ function renderMediation(panel,st){
     return;
   }
 
+  // "What you're testing" summary card
+  var xL=getVarLabel(st.medX),mL=getVarLabel(st.medM),yL=getVarLabel(st.medY);
+  var testCard=el('div','');
+  testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
+  var testTitle=el('div','');
+  testTitle.style.cssText='font-weight:600;color:var(--accent);margin-bottom:6px;';
+  testTitle.textContent='What you are testing';
+  testCard.appendChild(testTitle);
+  var testQ=el('div','');
+  testQ.textContent='Does '+mL+' explain HOW '+xL+' affects '+yL+'?';
+  testCard.appendChild(testQ);
+  var testDetail=el('div','');
+  testDetail.style.cssText='color:var(--text-secondary);font-size:12px;margin-top:6px;';
+  testDetail.textContent='X (Predictor): '+xL+' \u2022 M (Mediator): '+mL+' \u2022 Y (Outcome): '+yL+' \u2022 N = '+result.n;
+  testCard.appendChild(testDetail);
+  panel.appendChild(testCard);
+
   // Path diagram
   var card=el('div','card');
-  var tit=el('div','card-title','Mediation Analysis (Sobel Test)');
+  var tit=el('div','card-title','Path Diagram');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
   card.appendChild(tit);
 
@@ -3033,9 +3090,30 @@ function renderModeration(panel,st){
     return;
   }
 
+  // "What you're testing" summary card
+  var dvL=getVarLabel(st.modDV),ivL=getVarLabel(st.modIV),modL=getVarLabel(st.modMod);
+  var testCard=el('div','');
+  testCard.style.cssText='background:rgba(91,168,224,.06);border-left:3px solid var(--accent);border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;line-height:1.6;';
+  var testTitle=el('div','');
+  testTitle.style.cssText='font-weight:600;color:var(--accent);margin-bottom:6px;';
+  testTitle.textContent='What you are testing';
+  testCard.appendChild(testTitle);
+  var testQ=el('div','');
+  testQ.textContent='Does "'+modL+'" change the effect of "'+ivL+'" on "'+dvL+'"?';
+  testCard.appendChild(testQ);
+  var testDetail=el('div','');
+  testDetail.style.cssText='color:var(--text-secondary);font-size:12px;margin-top:6px;';
+  testDetail.textContent='Outcome: '+dvL+' \u2022 Predictor: '+ivL+' \u2022 Moderator: '+modL+' \u2022 N = '+result.n;
+  testCard.appendChild(testDetail);
+  panel.appendChild(testCard);
+
+  // Detect if moderator is binary (0/1)
+  var modIsBinary=true;
+  for(var mi=0;mi<mv.length;mi++){if(mv[mi]!==0&&mv[mi]!==1){modIsBinary=false;break;}}
+
   // Model card
   var card=el('div','card');
-  var tit=el('div','card-title','Moderation Analysis');
+  var tit=el('div','card-title','Model Summary');
   tit.appendChild(el('span','badge badge-accent','N = '+result.n));
   card.appendChild(tit);
 
@@ -3045,7 +3123,8 @@ function renderModeration(panel,st){
   sumStats.textContent='R\u00B2 = '+fmt(modRes.r2,3)+', F('+modRes.df_m+','+modRes.df_res+') = '+fmt(modRes.f_stat)+', p = '+fmtP(modRes.f_p);
   card.appendChild(sumStats);
 
-  // Coefficient table
+  // Coefficient table with actual variable names (NOT "X" and "Moderator")
+  var coefLabels=['Intercept',ivL+' (centered)',modL+' (centered)',ivL+' \u00D7 '+modL];
   var tbl=el('table','stats-table');
   var thead=el('thead','');
   var thr=el('tr','');
@@ -3054,7 +3133,7 @@ function renderModeration(panel,st){
   var tbody=el('tbody','');
   for(var j=0;j<modRes.beta.length;j++){
     var tr=el('tr','');
-    tr.appendChild(el('td','',modRes.vn[j]));
+    tr.appendChild(el('td','',coefLabels[j]||modRes.vn[j]));
     tr.appendChild(el('td','',fmt(modRes.beta[j],3)));
     tr.appendChild(el('td','',fmt(modRes.se[j],3)));
     tr.appendChild(el('td','',fmt(modRes.t[j],3)));
@@ -3064,6 +3143,14 @@ function renderModeration(panel,st){
     tbody.appendChild(tr);
   }
   tbl.appendChild(tbody);card.appendChild(tbl);
+
+  // Warning if moderator is binary
+  if(modIsBinary){
+    var warn=el('div','');
+    warn.style.cssText='background:rgba(232,176,96,.1);border:1px solid rgba(232,176,96,.3);border-radius:6px;padding:8px 12px;margin-top:8px;font-size:11px;color:var(--orange);';
+    warn.textContent='\u26A0 '+modL+' is binary (0/1). The \u00B11SD simple slopes below may be less interpretable than slopes at the actual values (0 vs 1).';
+    card.appendChild(warn);
+  }
 
   // Interaction significance
   var intP=modRes.p[3];
