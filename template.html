@@ -135,7 +135,7 @@ background:rgba(91,168,224,.15);color:var(--accent);margin-bottom:16px;}
 .mode-sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
 
 /* Dropdowns & IV chips for analysis */
-.analysis-config{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;max-height:40vh;overflow-y:auto;}
+.analysis-config{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg-card);border-bottom:1px solid var(--border);flex-shrink:0;}
 .config-group{display:flex;flex-direction:column;gap:4px;}
 .config-group label{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .config-group select{font-size:12px;min-width:160px;}
@@ -3136,12 +3136,10 @@ function renderCorrelation(panel,st){
     }
   }
 
-  // Helper: nice label including [W1]/[W2] in cross mode
+  // Helper: nice label ALWAYS prefixed with [W1] or [W2]
   function vLabel(idx){
     var vi=varInfo[idx];
-    var lbl=getVarLabel(vi.key);
-    if(isCrossCorr)lbl+=' ['+(vi.wave===1?'W1':'W2')+']';
-    return lbl;
+    return '[W'+vi.wave+'] '+getVarLabel(vi.key);
   }
 
   // "What you're testing" summary card
